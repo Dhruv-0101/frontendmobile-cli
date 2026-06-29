@@ -1,4 +1,4 @@
-package com.mymobileapp
+package com.dhruv.mobileapp
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
