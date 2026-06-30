@@ -174,7 +174,9 @@ export const MyPostsScreen = ({ navigation }: any) => {
                         {shortExcerpt}
                       </Text>
                       <View style={styles.postStats}>
-                        <Text style={styles.statText}>👁️ {post.viewsCount || 0} views</Text>
+                        <Text style={styles.statText}>
+                          👁️ {Array.isArray(post.postviewers) ? post.postviewers.length : (post.viewsCount || 0)} views
+                        </Text>
                         <Text style={styles.statText}>❤️ {post.likedislikes?.filter((l: any) => l.liked).length || 0} likes</Text>
                       </View>
                     </TouchableOpacity>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -6,7 +6,7 @@ import { restoreAuth } from '../features/auth/slice/authSlice';
 import ROUTES from '../shared/constants/routes';
 import AuthNavigator from './AuthNavigator';
 import AppNavigator from './AppNavigator';
-import Loader from '../shared/components/Loader/Loader';
+import SplashScreen from '../shared/components/SplashScreen/SplashScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +19,7 @@ export const RootNavigator = () => {
   const dispatch = useAppDispatch();
   // Get authentication state from the Redux store
   const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth);
+  const [isSplashVisible, setIsSplashVisible] = useState(true);
 
   useEffect(() => {
     // ========================================================================
@@ -27,15 +28,22 @@ export const RootNavigator = () => {
     // -> Next, execution goes to [authSlice.ts] to query AsyncStorage for keys.
     // ========================================================================
     dispatch(restoreAuth());
+
+    // Keep splash screen visible for 2 seconds for a premium look
+    const timer = setTimeout(() => {
+      setIsSplashVisible(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, [dispatch]);
 
   // ==========================================================================
   // [APP EXECUTION FLOW - STEP 3B: Loader Block]
-  // While we are checking AsyncStorage for stored tokens, we freeze the UI
-  // and display a loader. This prevents visual flashes of the Login page.
+  // While we are checking AsyncStorage for stored tokens or during startup animation,
+  // we show the brand splash screen. This prevents visual flashes.
   // ==========================================================================
-  if (isLoading) {
-    return <Loader message="Verifying session..." />;
+  if (isLoading || isSplashVisible) {
+    return <SplashScreen />;
   }
 
   return (

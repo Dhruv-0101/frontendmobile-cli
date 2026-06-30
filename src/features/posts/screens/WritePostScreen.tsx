@@ -113,7 +113,15 @@ export const WritePostScreen = ({ navigation }: any) => {
     };
 
     await storage.saveDraft(newDraft);
-    setLoadedDraftId(draftId);
+    
+    // Clear the editor fields after saving the draft
+    setDescription('');
+    setSelectedCategory(null);
+    setImageUri(null);
+    setImageFile(null);
+    setLoadedDraftId(null);
+    richTextRef.current?.setContentHTML('');
+
     await loadDrafts();
     Alert.alert('Success', 'Draft saved locally!');
   };
