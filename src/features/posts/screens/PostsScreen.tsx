@@ -40,7 +40,9 @@ export const PostsScreen = () => {
         </View>
 
         {/* Content */}
-        <Text style={styles.description}>{item.description}</Text>
+        <Text style={styles.description} numberOfLines={3}>
+          {item.description ? item.description.replace(/<[^>]*>?/gm, '') : ''}
+        </Text>
 
         {/* Post Image */}
         {!!item.image && (

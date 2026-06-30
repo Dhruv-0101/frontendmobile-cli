@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   Image,
@@ -14,44 +13,59 @@ import {
   Platform,
   Keyboard,
   TouchableWithoutFeedback,
+  StatusBar,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { RichEditor, actions } from 'react-native-pell-rich-editor';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import ROUTES from '../../../shared/constants/routes';
 import Button from '../../../shared/components/Button/Button';
 import Input from '../../../shared/components/Input/Input';
-import { useCategories, useCreateCategory, useCreatePost } from '../hooks/postHooks';
+import { useCategories, useCreatePost } from '../hooks/postHooks';
+import { storage } from '../../../services/storage';
 
 export const WritePostScreen = ({ navigation }: any) => {
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<any>(null);
-  
-  // Modals state
-  const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
-  const [isCreateCategoryModalVisible, setIsCreateCategoryModalVisible] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryDesc, setNewCategoryDesc] = useState('');
-  
-  // Mode selection (Edit vs Preview)
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
-  
-  // Selection tracking for markdown formatting insertion
-  const [textSelection, setTextSelection] = useState({ start: 0, end: 0 });
-  const inputRef = useRef<TextInput>(null);
 
-  // Fetch Categories hook
+  // Drafts & navigation tab state
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
+  const [savedDrafts, setSavedDrafts] = useState<any[]>([]);
+  const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
+
+  // Modals and toolbar states
+  const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
+  const [isLinkModalVisible, setIsLinkModalVisible] = useState(false);
+  const [isHeadingMenuVisible, setIsHeadingMenuVisible] = useState(false);
+  const [currentHeading, setCurrentHeading] = useState(0); // 0 = Normal, 1 = H1, 2 = H2, 3 = H3
+
+  // Link input states
+  const [linkTitle, setLinkTitle] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+
+  // Rich editor reference
+  const richTextRef = useRef<RichEditor>(null);
+
+  // Fetch Categories query
   const { data: categories = [], isLoading: isLoadingCategories } = useCategories();
 
-  // Create Category Mutation hook
-  const createCategoryMutation = useCreateCategory();
-
-  // Create Post Mutation hook
+  // Create Post mutation hook
   const createPostMutation = useCreatePost();
 
-  // Handle Image Selection
+  // Load drafts on mount
+  useEffect(() => {
+    loadDrafts();
+  }, []);
+
+  const loadDrafts = async () => {
+    const drafts = await storage.getDrafts();
+    setSavedDrafts(drafts);
+  };
+
+  // Handle image picker
   const selectImage = () => {
     launchImageLibrary(
       {
@@ -77,171 +91,232 @@ export const WritePostScreen = ({ navigation }: any) => {
     );
   };
 
-  const handleCreateCategory = () => {
-    if (!newCategoryName.trim()) {
-      Alert.alert('Error', 'Category name is required.');
+  // Draft Actions
+  const handleSaveDraft = async () => {
+    if (!description.trim() && !selectedCategory && !imageUri) {
+      Alert.alert('Empty Post', 'Please write some content or select a category before saving a draft.');
       return;
     }
-    createCategoryMutation.mutate(
-      {
-        categoryName: newCategoryName.trim(),
-        description: newCategoryDesc.trim(),
-      },
-      {
-        onSuccess: (data) => {
-          Alert.alert('Success', 'Category created successfully!');
-          // Automatically select the newly created category returned by the backend
-          if (data && data.categoryCreated) {
-            setSelectedCategory(data.categoryCreated);
-          }
-          // Clear inputs and close modal
-          setNewCategoryName('');
-          setNewCategoryDesc('');
-          setIsCreateCategoryModalVisible(false);
+
+    const draftId = loadedDraftId || Date.now().toString();
+    const newDraft = {
+      id: draftId,
+      description,
+      selectedCategory,
+      imageUri,
+      imageFile,
+      createdAt: new Date().toISOString(),
+    };
+
+    await storage.saveDraft(newDraft);
+    setLoadedDraftId(draftId);
+    await loadDrafts();
+    Alert.alert('Success', 'Draft saved locally!');
+  };
+
+  const handleLoadDraft = (draft: any) => {
+    setDescription(draft.description);
+    setSelectedCategory(draft.selectedCategory);
+    setImageUri(draft.imageUri);
+    setImageFile(draft.imageFile);
+    setLoadedDraftId(draft.id);
+
+    // Set editor content
+    richTextRef.current?.setContentHTML(draft.description);
+    
+    // Switch to edit tab
+    setActiveTab('edit');
+    Alert.alert('Loaded', 'Draft restored to editor.');
+  };
+
+  const handleDeleteDraft = (draftId: string) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this draft?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await storage.deleteDraft(draftId);
+            if (loadedDraftId === draftId) {
+              setLoadedDraftId(null);
+            }
+            await loadDrafts();
+          },
         },
-        onError: (err: any) => {
-          Alert.alert('Error', err.response?.data?.message || 'Failed to create category.');
-        },
-      }
+      ]
     );
   };
 
+  // Backend Publish Action
   const handlePublish = () => {
     if (!selectedCategory) {
       Alert.alert('Validation Error', 'Please select a category.');
       return;
     }
     if (!description.trim()) {
-      Alert.alert('Validation Error', 'Post content description cannot be empty.');
+      Alert.alert('Validation Error', 'Post content cannot be empty.');
       return;
     }
 
     const formData = new FormData();
     formData.append('description', description.trim());
     formData.append('category', selectedCategory.id.toString());
-    
+
     if (imageFile) {
       formData.append('image', imageFile);
     }
 
     createPostMutation.mutate(formData, {
-      onSuccess: () => {
+      onSuccess: async () => {
         Alert.alert('Success', 'Post published successfully!');
-        // Reset State
+
+        // If this post was created from a draft, delete the draft now
+        if (loadedDraftId) {
+          await storage.deleteDraft(loadedDraftId);
+        }
+
+        // Reset state
         setDescription('');
         setSelectedCategory(null);
         setImageUri(null);
         setImageFile(null);
-        // Navigate to Home tab
+        setLoadedDraftId(null);
+        richTextRef.current?.setContentHTML('');
+        await loadDrafts();
+
+        // Navigate to feed
         navigation.navigate(ROUTES.HOME);
       },
       onError: (err: any) => {
-        Alert.alert('Error', err.response?.data?.message || 'Failed to publish post. Please check user status and tier.');
+        Alert.alert(
+          'Error',
+          err.response?.data?.message || 'Failed to publish post. Please check user status and tier.'
+        );
       },
     });
   };
 
-  // Helper to insert Markdown Tag
-  const insertMarkdownTag = (tagOpen: string, tagClose: string = '') => {
-    const start = textSelection.start;
-    const end = textSelection.end;
-    
-    const selectedText = description.substring(start, end);
-    const beforeText = description.substring(0, start);
-    const afterText = description.substring(end);
-    
-    const newText = `${beforeText}${tagOpen}${selectedText}${tagClose}${afterText}`;
-    setDescription(newText);
-    
-    // Return focus to input and position cursor
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 50);
-  };
-
-  // Custom Markdown Live Renderer
-  const renderMarkdown = (text: string) => {
-    if (!text.trim()) {
+  // Custom Inline HTML Parser for Preview Tab
+  const renderHtml = (htmlText: string) => {
+    if (!htmlText || !htmlText.trim()) {
       return <Text style={styles.placeholderPreview}>No content written yet. Tap 'Edit' to compose!</Text>;
     }
-    
-    const lines = text.split('\n');
-    return lines.map((line, index) => {
-      // Headers
-      if (line.startsWith('# ')) {
-        return <Text key={index} style={styles.mdHeader1}>{line.slice(2)}</Text>;
+
+    // Replace linebreaks and parse standard block HTML tags
+    const blocks = htmlText
+      .replace(/<br\s*\/?>/gi, '\n')
+      .split(/(<h1>.*?<\/h1>|<h2>.*?<\/h2>|<h3>.*?<\/h3>|<li>.*?<\/li>|<p>.*?<\/p>|<div>.*?<\/div>)/gi)
+      .filter(Boolean);
+
+    return blocks.map((block, index) => {
+      const cleanBlock = block.trim();
+      if (!cleanBlock) return null;
+
+      // H1 Tag
+      if (/^<h1>(.*?)<\/h1>$/i.test(cleanBlock)) {
+        const match = cleanBlock.match(/^<h1>(.*?)<\/h1>$/i);
+        return <Text key={index} style={styles.mdHeader1}>{parseInlineHtml(match?.[1] || '')}</Text>;
       }
-      if (line.startsWith('## ')) {
-        return <Text key={index} style={styles.mdHeader2}>{line.slice(3)}</Text>;
+      // H2 Tag
+      if (/^<h2>(.*?)<\/h2>$/i.test(cleanBlock)) {
+        const match = cleanBlock.match(/^<h2>(.*?)<\/h2>$/i);
+        return <Text key={index} style={styles.mdHeader2}>{parseInlineHtml(match?.[1] || '')}</Text>;
       }
-      if (line.startsWith('### ')) {
-        return <Text key={index} style={styles.mdHeader3}>{line.slice(4)}</Text>;
+      // H3 Tag
+      if (/^<h3>(.*?)<\/h3>$/i.test(cleanBlock)) {
+        const match = cleanBlock.match(/^<h3>(.*?)<\/h3>$/i);
+        return <Text key={index} style={styles.mdHeader3}>{parseInlineHtml(match?.[1] || '')}</Text>;
       }
-      
-      // Bullet List
-      if (line.startsWith('- ')) {
+      // List Item Tag
+      if (/^<li>(.*?)<\/li>$/i.test(cleanBlock)) {
+        const match = cleanBlock.match(/^<li>(.*?)<\/li>$/i);
         return (
           <View key={index} style={styles.mdListItem}>
             <Text style={styles.mdBullet}>• </Text>
-            <Text style={styles.mdListText}>{line.slice(2)}</Text>
+            <Text style={styles.mdListText}>{parseInlineHtml(match?.[1] || '')}</Text>
           </View>
         );
       }
 
-      // Formatting: Bold (**text**), Italic (*text*), Links ([text](url))
-      const parts: any[] = [];
-      let currentText = line;
-      let match;
-      const regex = /(\*\*.*?\*\*|\*.*?\*|\[.*?\]\(.*?\))/g;
-      
-      let keyIdx = 0;
-      while ((match = regex.exec(currentText)) !== null) {
-        const matchText = match[0];
-        const matchIndex = match.index;
-        
-        // Text before match
-        if (matchIndex > 0) {
-          parts.push(<Text key={`text-${keyIdx++}`}>{currentText.slice(0, matchIndex)}</Text>);
-        }
-        
-        // Match styling
-        if (matchText.startsWith('**') && matchText.endsWith('**')) {
-          parts.push(
-            <Text key={`bold-${keyIdx++}`} style={styles.mdBold}>
-              {matchText.slice(2, -2)}
-            </Text>
-          );
-        } else if (matchText.startsWith('*') && matchText.endsWith('*')) {
-          parts.push(
-            <Text key={`italic-${keyIdx++}`} style={styles.mdItalic}>
-              {matchText.slice(1, -1)}
-            </Text>
-          );
-        } else if (matchText.startsWith('[') && matchText.includes('](')) {
-          const textEnd = matchText.indexOf(']');
-          const urlStart = matchText.indexOf('(');
-          const linkText = matchText.slice(1, textEnd);
-          parts.push(
-            <Text key={`link-${keyIdx++}`} style={styles.mdLink}>
-              {linkText}
-            </Text>
-          );
-        }
-        
-        currentText = currentText.slice(matchIndex + matchText.length);
-        regex.lastIndex = 0;
+      // Paragraph / Div tag stripping
+      const isPara = /^<p>(.*?)<\/p>$/i.test(cleanBlock);
+      const isDiv = /^<div>(.*?)<\/div>$/i.test(cleanBlock);
+      let content = cleanBlock;
+      if (isPara) content = cleanBlock.match(/^<p>(.*?)<\/p>$/i)?.[1] || '';
+      if (isDiv) content = cleanBlock.match(/^<div>(.*?)<\/div>$/i)?.[1] || '';
+
+      if (content.startsWith('<') && content.endsWith('>')) {
+        return null; // Skip raw structural tags
       }
-      
-      if (currentText.length > 0) {
-        parts.push(<Text key={`text-end-${index}`}>{currentText}</Text>);
-      }
-      
+
       return (
         <Text key={index} style={styles.mdParagraph}>
-          {parts.length > 0 ? parts : line}
+          {parseInlineHtml(content)}
         </Text>
       );
     });
+  };
+
+  const parseInlineHtml = (text: string) => {
+    const parts: any[] = [];
+    let currentText = text;
+    let match;
+    const regex = /(<b>.*?<\/b>|<strong>.*?<\/strong>|<i>.*?<\/i>|<em>.*?<\/em>|<u>.*?<\/u>|<a href=".*?">.*?<\/a>)/gi;
+
+    let keyIdx = 0;
+    while ((match = regex.exec(currentText)) !== null) {
+      const matchText = match[0];
+      const matchIndex = match.index;
+
+      if (matchIndex > 0) {
+        parts.push(<Text key={`text-${keyIdx++}`}>{currentText.slice(0, matchIndex).replace(/<[^>]*>?/gm, '')}</Text>);
+      }
+
+      if (/^<b>(.*?)<\/b>$/i.test(matchText) || /^<strong>(.*?)<\/strong>$/i.test(matchText)) {
+        const innerText = matchText.replace(/<[^>]*>?/gm, '');
+        parts.push(<Text key={`bold-${keyIdx++}`} style={styles.mdBold}>{innerText}</Text>);
+      } else if (/^<i>(.*?)<\/i>$/i.test(matchText) || /^<em>(.*?)<\/em>$/i.test(matchText)) {
+        const innerText = matchText.replace(/<[^>]*>?/gm, '');
+        parts.push(<Text key={`italic-${keyIdx++}`} style={styles.mdItalic}>{innerText}</Text>);
+      } else if (/^<u>(.*?)<\/u>$/i.test(matchText)) {
+        const innerText = matchText.replace(/<[^>]*>?/gm, '');
+        parts.push(<Text key={`underline-${keyIdx++}`} style={styles.mdUnderline}>{innerText}</Text>);
+      } else if (/^<a href="(.*?)">(.*?)<\/a>$/i.test(matchText)) {
+        const matchHref = matchText.match(/^<a href="(.*?)">(.*?)<\/a>$/i);
+        const linkText = matchHref?.[2] || '';
+        parts.push(<Text key={`link-${keyIdx++}`} style={styles.mdLink}>{linkText}</Text>);
+      }
+
+      currentText = currentText.slice(matchIndex + matchText.length);
+      regex.lastIndex = 0;
+    }
+
+    if (currentText.length > 0) {
+      parts.push(<Text key={`text-end-${keyIdx++}`}>{currentText.replace(/<[^>]*>?/gm, '')}</Text>);
+    }
+
+    return parts.length > 0 ? parts : text.replace(/<[^>]*>?/gm, '');
+  };
+
+  // Strip HTML for draft descriptions snippets
+  const stripHtml = (html: string) => {
+    return html ? html.replace(/<[^>]*>?/gm, '') : '';
+  };
+
+  const handleInsertLink = () => {
+    setLinkTitle('');
+    setLinkUrl('');
+    setIsLinkModalVisible(true);
+  };
+
+  const submitLink = () => {
+    if (linkUrl) {
+      richTextRef.current?.insertLink(linkTitle || linkUrl, linkUrl);
+    }
+    setIsLinkModalVisible(false);
   };
 
   return (
@@ -265,12 +340,13 @@ export const WritePostScreen = ({ navigation }: any) => {
           style={[styles.tab, activeTab === 'preview' && styles.activeTab]}
           onPress={() => setActiveTab('preview')}
         >
-          <Text style={[styles.tabText, activeTab === 'preview' && styles.activeTabText]}>Preview</Text>
+          <Text style={[styles.tabText, activeTab === 'preview' && styles.activeTabText]}>Preview & Drafts</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        {activeTab === 'edit' ? (
+        {/* EDIT VIEW */}
+        <View style={{ display: activeTab === 'edit' ? 'flex' : 'none' }}>
           <View style={styles.formContainer}>
             {/* Category Selector */}
             <Text style={styles.label}>Category</Text>
@@ -283,12 +359,6 @@ export const WritePostScreen = ({ navigation }: any) => {
                   {selectedCategory ? selectedCategory.categoryName : 'Select a Category'}
                 </Text>
                 <Text style={styles.arrowDown}>▼</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.addCategoryBtn}
-                onPress={() => setIsCreateCategoryModalVisible(true)}
-              >
-                <Text style={styles.addCategoryBtnText}>+</Text>
               </TouchableOpacity>
             </View>
 
@@ -321,49 +391,137 @@ export const WritePostScreen = ({ navigation }: any) => {
 
             {/* Description Editor */}
             <Text style={styles.label}>Post Content</Text>
-            
-            {/* Markdown Helper Toolbar */}
-            <View style={styles.toolbar}>
-              <TouchableOpacity style={styles.toolbarBtn} onPress={() => insertMarkdownTag('**', '**')}>
-                <Text style={styles.toolbarBtnText}>B</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.toolbarBtn} onPress={() => insertMarkdownTag('*', '*')}>
-                <Text style={[styles.toolbarBtnText, { fontStyle: 'italic' }]}>I</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.toolbarBtn} onPress={() => insertMarkdownTag('# ')}>
-                <Text style={styles.toolbarBtnText}>H1</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.toolbarBtn} onPress={() => insertMarkdownTag('## ')}>
-                <Text style={styles.toolbarBtnText}>H2</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.toolbarBtn} onPress={() => insertMarkdownTag('- ')}>
-                <Text style={styles.toolbarBtnText}>• List</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.toolbarBtn} onPress={() => insertMarkdownTag('[text](url)')}>
-                <Text style={styles.toolbarBtnText}>🔗 Link</Text>
-              </TouchableOpacity>
+
+            {/* Rich Editor Custom Toolbar */}
+            <View style={styles.toolbarContainer}>
+              <View style={styles.toolbarRow}>
+                {/* Heading Dropdown */}
+                <TouchableOpacity
+                  style={styles.headingDropdown}
+                  onPress={() => setIsHeadingMenuVisible(!isHeadingMenuVisible)}
+                >
+                  <Text style={styles.headingDropdownText}>
+                    {currentHeading === 1
+                      ? 'Heading 1'
+                      : currentHeading === 2
+                      ? 'Heading 2'
+                      : currentHeading === 3
+                      ? 'Heading 3'
+                      : 'Normal'}
+                  </Text>
+                  <Text style={styles.arrowDown}>▼</Text>
+                </TouchableOpacity>
+
+                {/* Styled format buttons */}
+                <TouchableOpacity style={styles.toolbarBtn} onPress={() => richTextRef.current?.sendAction(actions.setBold, 'result')}>
+                  <Text style={styles.toolbarBtnBold}>B</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.toolbarBtn} onPress={() => richTextRef.current?.sendAction(actions.setItalic, 'result')}>
+                  <Text style={styles.toolbarBtnItalic}>I</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.toolbarBtn} onPress={() => richTextRef.current?.sendAction(actions.setUnderline, 'result')}>
+                  <Text style={styles.toolbarBtnUnderline}>U</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.toolbarBtn} onPress={handleInsertLink}>
+                  <Text style={styles.toolbarBtnText}>🔗</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.toolbarBtn} onPress={() => richTextRef.current?.sendAction(actions.insertOrderedList, 'result')}>
+                  <Text style={styles.toolbarBtnText}>1.</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.toolbarBtn} onPress={() => richTextRef.current?.sendAction(actions.insertBulletsList, 'result')}>
+                  <Text style={styles.toolbarBtnText}>•</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.toolbarBtn} onPress={() => richTextRef.current?.sendAction(actions.removeFormat, 'result')}>
+                  <Text style={styles.toolbarBtnTextClear}>Tx</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Absolute Popover Heading Menu */}
+              {isHeadingMenuVisible && (
+                <View style={styles.headingMenu}>
+                  <TouchableOpacity
+                    style={styles.headingMenuItem}
+                    onPress={() => {
+                      richTextRef.current?.sendAction(actions.setParagraph, 'result');
+                      setCurrentHeading(0);
+                      setIsHeadingMenuVisible(false);
+                    }}
+                  >
+                    <Text style={styles.headingMenuItemText}>Normal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.headingMenuItem}
+                    onPress={() => {
+                      richTextRef.current?.sendAction(actions.heading1, 'result');
+                      setCurrentHeading(1);
+                      setIsHeadingMenuVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.headingMenuItemText, { fontSize: 18, fontWeight: '700' }]}>Heading 1</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.headingMenuItem}
+                    onPress={() => {
+                      richTextRef.current?.sendAction(actions.heading2, 'result');
+                      setCurrentHeading(2);
+                      setIsHeadingMenuVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.headingMenuItemText, { fontSize: 16, fontWeight: '700' }]}>Heading 2</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.headingMenuItem}
+                    onPress={() => {
+                      richTextRef.current?.sendAction(actions.heading3, 'result');
+                      setCurrentHeading(3);
+                      setIsHeadingMenuVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.headingMenuItemText, { fontSize: 14, fontWeight: '700' }]}>Heading 3</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
-            <TextInput
-              ref={inputRef}
-              style={styles.textArea}
-              placeholder="Start writing in rich markdown format..."
-              multiline={true}
-              value={description}
-              onChangeText={setDescription}
-              onSelectionChange={(e) => setTextSelection(e.nativeEvent.selection)}
-              textAlignVertical="top"
-              placeholderTextColor={COLORS.textLightSecondary}
-            />
+            {/* Pell Rich Text Editor Container */}
+            <View style={styles.editorContainer}>
+              <RichEditor
+                ref={richTextRef}
+                initialContentHTML={description}
+                onChange={setDescription}
+                placeholder="Write your story content here..."
+                style={styles.richEditor}
+                editorStyle={{
+                  backgroundColor: COLORS.white,
+                  color: COLORS.textLightPrimary,
+                  placeholderColor: COLORS.textLightSecondary,
+                  contentCSSText: 'font-size: 15px; line-height: 22px; font-family: Helvetica;',
+                }}
+              />
+            </View>
 
-            <Button
-              title="Publish Post"
-              onPress={handlePublish}
-              isLoading={createPostMutation.isPending}
-              style={styles.publishBtn}
-            />
+            {/* Action Buttons Row */}
+            <View style={styles.actionButtonsContainer}>
+              <Button
+                title="Save Draft"
+                onPress={handleSaveDraft}
+                variant="outline"
+                style={styles.draftBtn}
+              />
+              <Button
+                title="Publish Post"
+                onPress={handlePublish}
+                isLoading={createPostMutation.isPending}
+                style={styles.publishBtn}
+              />
+            </View>
           </View>
-        ) : (
+        </View>
+
+        {/* PREVIEW VIEW */}
+        <View style={{ display: activeTab === 'preview' ? 'flex' : 'none' }}>
+          {/* Active Post Preview */}
+          <Text style={styles.previewSectionTitle}>CURRENT STORY PREVIEW</Text>
           <View style={styles.previewCard}>
             {imageUri && (
               <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
@@ -374,10 +532,60 @@ export const WritePostScreen = ({ navigation }: any) => {
               </Text>
             </View>
             <View style={styles.previewContent}>
-              {renderMarkdown(description)}
+              {renderHtml(description)}
             </View>
           </View>
-        )}
+
+          {/* Drafts Section */}
+          <Text style={styles.previewSectionTitle}>YOUR SAVED DRAFTS ({savedDrafts.length})</Text>
+          {savedDrafts.length === 0 ? (
+            <View style={styles.emptyDraftsContainer}>
+              <Text style={styles.emptyDraftsText}>No saved drafts found.</Text>
+              <Text style={styles.emptyDraftsSubText}>Tap 'Save Draft' in the Edit tab to store posts offline.</Text>
+            </View>
+          ) : (
+            <View style={styles.draftsList}>
+              {savedDrafts.map((draft: any) => (
+                <View key={draft.id} style={styles.draftCard}>
+                  <View style={styles.draftHeaderRow}>
+                    <Text style={styles.draftCategory}>
+                      📁 {draft.selectedCategory ? draft.selectedCategory.categoryName : 'Uncategorized'}
+                    </Text>
+                    <Text style={styles.draftDate}>
+                      {new Date(draft.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.draftContentRow}>
+                    <View style={styles.draftTextContainer}>
+                      <Text style={styles.draftSnippet} numberOfLines={2}>
+                        {stripHtml(draft.description) || 'Empty draft contents...'}
+                      </Text>
+                    </View>
+                    {draft.imageUri && (
+                      <Image source={{ uri: draft.imageUri }} style={styles.draftThumbnail} />
+                    )}
+                  </View>
+
+                  <View style={styles.draftActionsRow}>
+                    <TouchableOpacity
+                      style={[styles.draftActionBtn, styles.draftLoadBtn]}
+                      onPress={() => handleLoadDraft(draft)}
+                    >
+                      <Text style={styles.draftLoadBtnText}>📝 Load Draft</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.draftActionBtn, styles.draftDeleteBtn]}
+                      onPress={() => handleDeleteDraft(draft.id)}
+                    >
+                      <Text style={styles.draftDeleteBtnText}>🗑️ Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Select Category Modal */}
@@ -395,7 +603,7 @@ export const WritePostScreen = ({ navigation }: any) => {
               {isLoadingCategories ? (
                 <ActivityIndicator size="small" color={COLORS.primary} style={{ margin: SPACING.lg }} />
               ) : categories.length === 0 ? (
-                <Text style={styles.noCategoriesText}>No categories found. Click "+" to create one.</Text>
+                <Text style={styles.noCategoriesText}>No categories available. Please contact admin.</Text>
               ) : (
                 <ScrollView style={styles.categoryList}>
                   {categories.map((cat: any) => (
@@ -434,50 +642,50 @@ export const WritePostScreen = ({ navigation }: any) => {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* Create Category Modal */}
+      {/* Insert Link Modal */}
       <Modal
-        visible={isCreateCategoryModalVisible}
+        visible={isLinkModalVisible}
         animationType="fade"
         transparent={true}
-        onRequestClose={() => setIsCreateCategoryModalVisible(false)}
+        onRequestClose={() => setIsLinkModalVisible(false)}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>New Category</Text>
-            
-            <Input
-              label="Category Name"
-              placeholder="e.g. Technology"
-              value={newCategoryName}
-              onChangeText={setNewCategoryName}
-            />
+        <TouchableWithoutFeedback onPress={() => setIsLinkModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Insert Hyperlink</Text>
+              
+              <Input
+                label="Link Text (Optional)"
+                placeholder="e.g. Google"
+                value={linkTitle}
+                onChangeText={setLinkTitle}
+              />
 
-            <Input
-              label="Description (Optional)"
-              placeholder="e.g. Articles about tech and coding"
-              value={newCategoryDesc}
-              onChangeText={setNewCategoryDesc}
-            />
+              <Input
+                label="URL"
+                placeholder="e.g. https://google.com"
+                value={linkUrl}
+                onChangeText={setLinkUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+              />
 
-            <Button
-              title="Create Category"
-              onPress={handleCreateCategory}
-              isLoading={createCategoryMutation.isPending}
-              style={styles.modalSubmitBtn}
-            />
-
-            <Button
-              title="Cancel"
-              onPress={() => setIsCreateCategoryModalVisible(false)}
-              variant="outline"
-              style={styles.modalCloseBtn}
-              disabled={createCategoryMutation.isPending}
-            />
+              <View style={styles.linkModalButtons}>
+                <Button
+                  title="Cancel"
+                  onPress={() => setIsLinkModalVisible(false)}
+                  variant="outline"
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title="Insert"
+                  onPress={submitLink}
+                  style={{ flex: 1, marginLeft: SPACING.sm }}
+                />
+              </View>
+            </View>
           </View>
-        </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </KeyboardAvoidingView>
   );
@@ -569,19 +777,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textLightSecondary,
   },
-  addCategoryBtn: {
-    width: 50,
-    height: 50,
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addCategoryBtnText: {
-    color: COLORS.white,
-    fontSize: 24,
-    fontWeight: '600',
-  },
   uploadBox: {
     height: 120,
     backgroundColor: COLORS.white,
@@ -640,7 +835,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textLightPrimary,
   },
-  toolbar: {
+  
+  // Toolbar layout matching pell editor screenshot style
+  toolbarContainer: {
+    position: 'relative',
+    zIndex: 10,
+  },
+  toolbarRow: {
     flexDirection: 'row',
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 10,
@@ -649,36 +850,129 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderLight,
     borderBottomWidth: 0,
     padding: SPACING.xs,
+    alignItems: 'center',
     gap: SPACING.xs,
+    flexWrap: 'wrap',
+  },
+  headingDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.backgroundLight,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: 6,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 5,
+    marginRight: SPACING.xs,
+    gap: SPACING.xs,
+  },
+  headingDropdownText: {
+    fontSize: 13,
+    color: COLORS.textLightPrimary,
+    fontWeight: '700',
   },
   toolbarBtn: {
     paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
+    paddingVertical: 5,
     backgroundColor: COLORS.backgroundLight,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 28,
   },
   toolbarBtnText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primary,
+    color: COLORS.textLightPrimary,
   },
-  textArea: {
-    height: 250,
+  toolbarBtnBold: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.textLightPrimary,
+  },
+  toolbarBtnItalic: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    fontWeight: '600',
+    color: COLORS.textLightPrimary,
+  },
+  toolbarBtnUnderline: {
+    fontSize: 13,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
+    color: COLORS.textLightPrimary,
+  },
+  toolbarBtnTextClear: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.danger,
+  },
+  
+  // Heading Menu dropdown items
+  headingMenu: {
+    position: 'absolute',
+    top: 38,
+    left: 4,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: 8,
+    padding: SPACING.xs,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    minWidth: 120,
+    zIndex: 20,
+  },
+  headingMenuItem: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.backgroundLight,
+  },
+  headingMenuItemText: {
+    fontSize: 14,
+    color: COLORS.textLightPrimary,
+  },
+
+  // Editor styling
+  editorContainer: {
     backgroundColor: COLORS.white,
     borderBottomLeftRadius: 10,
     borderBottomRightRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    padding: SPACING.md,
-    fontSize: 15,
-    lineHeight: 22,
-    color: COLORS.textLightPrimary,
+    minHeight: 250,
   },
-  publishBtn: {
+  richEditor: {
+    flex: 1,
+    minHeight: 250,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: SPACING.md,
     marginTop: SPACING.lg,
     marginBottom: SPACING.xl,
+  },
+  draftBtn: {
+    flex: 1,
+    borderColor: COLORS.primary,
+  },
+  publishBtn: {
+    flex: 1.5,
+  },
+
+  // Previews & HTML Rendering
+  previewSectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.textLightSecondary,
+    letterSpacing: 1,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   previewCard: {
     backgroundColor: COLORS.white,
@@ -707,7 +1001,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   previewContent: {
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.sm,
   },
   placeholderPreview: {
     color: COLORS.textLightSecondary,
@@ -716,6 +1010,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: SPACING.xl,
   },
+  
+  // Custom HTML Tag styles
   mdHeader1: {
     fontSize: 24,
     fontWeight: '800',
@@ -765,10 +1061,15 @@ const styles = StyleSheet.create({
   mdItalic: {
     fontStyle: 'italic',
   },
+  mdUnderline: {
+    textDecorationLine: 'underline',
+  },
   mdLink: {
     color: '#3b82f6',
     textDecorationLine: 'underline',
   },
+
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -825,8 +1126,117 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     borderColor: COLORS.borderLight,
   },
-  modalSubmitBtn: {
+  linkModalButtons: {
+    flexDirection: 'row',
     marginTop: SPACING.md,
+  },
+
+  // Drafts Listing layout
+  emptyDraftsContainer: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: 16,
+    padding: SPACING.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+  },
+  emptyDraftsText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.textLightPrimary,
+    marginBottom: SPACING.xs,
+  },
+  emptyDraftsSubText: {
+    fontSize: 13,
+    color: COLORS.textLightSecondary,
+    textAlign: 'center',
+  },
+  draftsList: {
+    gap: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  draftCard: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: 16,
+    padding: SPACING.md,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  draftHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  draftCategory: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  draftDate: {
+    fontSize: 12,
+    color: COLORS.textLightSecondary,
+  },
+  draftContentRow: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  draftTextContainer: {
+    flex: 1,
+  },
+  draftSnippet: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.textLightPrimary,
+  },
+  draftThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: COLORS.backgroundLight,
+  },
+  draftsListContainer: {
+    gap: SPACING.md,
+  },
+  draftActionsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    paddingTop: SPACING.sm,
+  },
+  draftActionBtn: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  draftLoadBtn: {
+    backgroundColor: COLORS.backgroundLight,
+    borderColor: COLORS.borderLight,
+  },
+  draftLoadBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textLightPrimary,
+  },
+  draftDeleteBtn: {
+    backgroundColor: '#fee2e2',
+    borderColor: '#fca5a5',
+  },
+  draftDeleteBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.danger,
   },
 });
 

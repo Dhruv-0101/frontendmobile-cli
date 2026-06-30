@@ -64,4 +64,45 @@ export const storage = {
       console.error('Error clearing auth data from storage', e);
     }
   },
+
+  getDrafts: async (): Promise<any[]> => {
+    try {
+      const draftsStr = await AsyncStorage.getItem('post_drafts');
+      return draftsStr ? JSON.parse(draftsStr) : [];
+    } catch (e) {
+      console.error('Error reading drafts from storage', e);
+      return [];
+    }
+  },
+
+  saveDraft: async (draft: any): Promise<void> => {
+    try {
+      const draftsStr = await AsyncStorage.getItem('post_drafts');
+      const drafts = draftsStr ? JSON.parse(draftsStr) : [];
+      
+      const index = drafts.findIndex((d: any) => d.id === draft.id);
+      if (index > -1) {
+        drafts[index] = draft;
+      } else {
+        drafts.push(draft);
+      }
+      
+      await AsyncStorage.setItem('post_drafts', JSON.stringify(drafts));
+    } catch (e) {
+      console.error('Error saving draft to storage', e);
+    }
+  },
+
+  deleteDraft: async (draftId: string): Promise<void> => {
+    try {
+      const draftsStr = await AsyncStorage.getItem('post_drafts');
+      if (draftsStr) {
+        let drafts = JSON.parse(draftsStr);
+        drafts = drafts.filter((d: any) => d.id !== draftId);
+        await AsyncStorage.setItem('post_drafts', JSON.stringify(drafts));
+      }
+    } catch (e) {
+      console.error('Error deleting draft from storage', e);
+    }
+  },
 };
