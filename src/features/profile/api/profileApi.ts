@@ -36,4 +36,19 @@ export const profileApi = {
       throw err;
     }
   },
+
+  getNotifications: async () => {
+    const response = await apiClient.get('/post/get-user-notification');
+    return response.data || { unreadCount: 0, notifications: [] };
+  },
+
+  markNotificationRead: async (notificationId: number) => {
+    const response = await apiClient.put(`/post/update-user-notification/${notificationId}`);
+    return response.data;
+  },
+
+  getRankings: async () => {
+    const response = await apiClient.get('/post/get-user-post-rankings');
+    return Array.isArray(response.data) ? response.data : response.data?.rankings || [];
+  },
 };

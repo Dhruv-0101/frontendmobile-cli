@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity } from 
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import { useAppSelector } from '../../../store/hooks';
+import TopHeader from '../../../shared/components/TopHeader/TopHeader';
 
 export const HomeScreen = () => {
   const user = useAppSelector((state) => state.auth.user);
@@ -10,6 +11,7 @@ export const HomeScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
+      <TopHeader />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         {/* User Greeting Section */}
         <View style={styles.welcomeRow}>

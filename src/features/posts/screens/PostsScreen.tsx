@@ -14,6 +14,7 @@ import SPACING from '../../../shared/constants/spacing';
 import Loader from '../../../shared/components/Loader/Loader';
 import { formatDate } from '../../../shared/utils/date';
 import ROUTES from '../../../shared/constants/routes';
+import TopHeader from '../../../shared/components/TopHeader/TopHeader';
 
 export const PostsScreen = ({ navigation }: any) => {
   const { data: posts, isLoading, error, refetch, isRefetching } = usePosts();
@@ -95,10 +96,7 @@ export const PostsScreen = ({ navigation }: any) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
-      
-      <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Stories Feed</Text>
-      </View>
+      <TopHeader />
 
       {error ? (
         <View style={styles.errorContainer}>

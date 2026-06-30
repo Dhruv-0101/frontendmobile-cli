@@ -10,6 +10,9 @@ import MyEarningsScreen from '../features/profile/screens/MyEarningsScreen';
 import AdminPanelScreen from '../features/profile/screens/AdminPanelScreen';
 import PlansPurchaseScreen from '../features/profile/screens/PlansPurchaseScreen';
 import PostDetailsScreen from '../features/posts/screens/PostDetailsScreen';
+import ProfileScreen from '../features/profile/screens/ProfileScreen';
+import NotificationsScreen from '../features/profile/screens/NotificationsScreen';
+import RankingsScreen from '../features/profile/screens/RankingsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -55,6 +58,21 @@ export const AppNavigator = () => {
       <Stack.Screen
         name={ROUTES.POST_DETAILS}
         component={PostDetailsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.PROFILE}
+        component={ProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.NOTIFICATIONS}
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.RANKINGS}
+        component={RankingsScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

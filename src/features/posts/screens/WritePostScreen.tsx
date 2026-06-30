@@ -25,6 +25,7 @@ import Input from '../../../shared/components/Input/Input';
 import { useCategories, useCreatePost } from '../hooks/postHooks';
 import { storage } from '../../../services/storage';
 import { useAppSelector } from '../../../store/hooks';
+import TopHeader from '../../../shared/components/TopHeader/TopHeader';
 
 export const WritePostScreen = ({ navigation }: any) => {
   const user = useAppSelector((state) => state.auth.user);
@@ -342,9 +343,7 @@ export const WritePostScreen = ({ navigation }: any) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <View style={styles.navBar}>
-        <Text style={styles.navTitle}>Create Post</Text>
-      </View>
+      <TopHeader />
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>

@@ -14,6 +14,7 @@ export const BottomTabNavigator = () => {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        headerShown: false,
         tabBarIcon: ({ focused, size }) => {
           let iconText = '';
           if (route.name === ROUTES.HOME) {
@@ -22,8 +23,6 @@ export const BottomTabNavigator = () => {
             iconText = focused ? '📰' : '🗞️';
           } else if (route.name === ROUTES.WRITE) {
             iconText = focused ? '✍️' : '✏️';
-          } else if (route.name === ROUTES.PROFILE) {
-            iconText = focused ? '👤' : '👥';
           }
           return <Text style={{ fontSize: size }}>{iconText}</Text>;
         },
@@ -37,24 +36,11 @@ export const BottomTabNavigator = () => {
           paddingBottom: 8,
           paddingTop: 8,
         },
-        headerStyle: {
-          backgroundColor: COLORS.white,
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: COLORS.borderLight,
-        },
-        headerTitleStyle: {
-          fontWeight: '800',
-          fontSize: 18,
-          color: COLORS.textLightPrimary,
-        },
       })}
     >
       <Tab.Screen name={ROUTES.HOME} component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen name={ROUTES.POSTS} component={PostsScreen} options={{ title: 'Feed' }} />
       <Tab.Screen name={ROUTES.WRITE} component={WritePostScreen} options={{ title: 'Write' }} />
-      <Tab.Screen name={ROUTES.PROFILE} component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );
 };

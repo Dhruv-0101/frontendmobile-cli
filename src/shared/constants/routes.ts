@@ -23,6 +23,8 @@ export const ROUTES = {
   MY_EARNINGS: 'MyEarnings',
   ADMIN_PANEL: 'AdminPanel',
   PLANS_PURCHASE: 'PlansPurchase',
+  NOTIFICATIONS: 'Notifications',
+  RANKINGS: 'Rankings',
 };
 
 export default ROUTES;
