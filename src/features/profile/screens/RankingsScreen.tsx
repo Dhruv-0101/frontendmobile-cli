@@ -14,6 +14,7 @@ import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import { useRankings } from '../hooks/profileHooks';
 import { useAppSelector } from '../../../store/hooks';
+import { getAvatarUri } from '../../../shared/utils/avatar';
 
 export const RankingsScreen = ({ navigation }: any) => {
   const currentUser = useAppSelector((state) => state.auth.user);
@@ -94,8 +95,8 @@ export const RankingsScreen = ({ navigation }: any) => {
 
                     {/* User Avatar */}
                     <View style={styles.avatarContainer}>
-                      {item.profilePicture ? (
-                        <Image source={{ uri: item.profilePicture }} style={styles.avatarImg} />
+                      {getAvatarUri(item.profilePicture) ? (
+                        <Image source={{ uri: getAvatarUri(item.profilePicture)! }} style={styles.avatarImg} />
                       ) : (
                         <View style={[styles.avatarCircle, { backgroundColor: color }]}>
                           <Text style={styles.avatarLetter}>{initial}</Text>

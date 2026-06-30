@@ -18,6 +18,7 @@ import SPACING from '../../../shared/constants/spacing';
 import Button from '../../../shared/components/Button/Button';
 import Loader from '../../../shared/components/Loader/Loader';
 import { formatDate } from '../../../shared/utils/date';
+import { getAvatarUri } from '../../../shared/utils/avatar';
 import { useAppSelector } from '../../../store/hooks';
 import {
   useSinglePost,
@@ -268,8 +269,8 @@ export const PostDetailsScreen = ({ route, navigation }: any) => {
         {/* Creator Info Card */}
         <View style={styles.creatorCard}>
           <View style={styles.avatar}>
-            {post.user?.profilePicture ? (
-              <Image source={{ uri: post.user.profilePicture }} style={styles.avatarImg} />
+            {getAvatarUri(post.user?.profilePicture) ? (
+              <Image source={{ uri: getAvatarUri(post.user?.profilePicture)! }} style={styles.avatarImg} />
             ) : (
               <Text style={styles.avatarTxt}>{authorInitial}</Text>
             )}
@@ -371,8 +372,8 @@ export const PostDetailsScreen = ({ route, navigation }: any) => {
                 <View key={comment.id} style={styles.commentCard}>
                   <View style={styles.commentHeader}>
                     <View style={styles.commentAvatar}>
-                      {comment.user?.profilePicture ? (
-                        <Image source={{ uri: comment.user.profilePicture }} style={styles.cAvatarImg} />
+                      {getAvatarUri(comment.user?.profilePicture) ? (
+                        <Image source={{ uri: getAvatarUri(comment.user?.profilePicture)! }} style={styles.cAvatarImg} />
                       ) : (
                         <Text style={styles.cAvatarTxt}>{cInitial}</Text>
                       )}

@@ -15,35 +15,40 @@ import Loader from '../../../shared/components/Loader/Loader';
 import { formatDate } from '../../../shared/utils/date';
 import ROUTES from '../../../shared/constants/routes';
 import TopHeader from '../../../shared/components/TopHeader/TopHeader';
+import { getAvatarUri } from '../../../shared/utils/avatar';
 
 export const PostsScreen = ({ navigation }: any) => {
-  const { data: posts, isLoading, error, refetch, isRefetching } = usePosts();
+  const { data: posts = [], isLoading, error, refetch, isRefetching } = usePosts();
 
   const renderPostItem = ({ item }: { item: any }) => {
-    const authorName = item.user?.username || 'Creator';
+    const authorName = item.user?.username || 'Anonymous';
     const authorInitial = authorName[0].toUpperCase();
     
     // Stats calculation from fetched relations
-    const viewsCount = item.postviewers?.length || 0;
+    const viewsCount = Array.isArray(item.postviewers)
+      ? item.postviewers.length
+      : item.viewsCount || 0;
     const likesCount = item.likedislikes?.filter((l: any) => l.liked).length || 0;
     const commentsCount = item.comments?.length || 0;
 
     // Truncate description text cleanly
     const rawDescription = item.description ? item.description.replace(/<[^>]*>?/gm, '') : '';
-    const isTruncated = rawDescription.length > 120;
-    const shortDescription = isTruncated ? rawDescription.slice(0, 120) + '...' : rawDescription;
+    const isTruncated = rawDescription.length > 150;
+    const shortDescription = isTruncated ? rawDescription.slice(0, 150) + '...' : rawDescription;
+    
+    const avatarUrl = getAvatarUri(item.user?.profilePicture);
 
     return (
       <TouchableOpacity
-        activeOpacity={0.9}
+        activeOpacity={0.95}
         style={styles.postCard}
         onPress={() => navigation.navigate(ROUTES.POST_DETAILS, { postId: item.id })}
       >
         {/* Author Header */}
         <View style={styles.authorRow}>
           <View style={styles.avatar}>
-            {item.user?.profilePicture ? (
-              <Image source={{ uri: item.user.profilePicture }} style={styles.avatarImg} />
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
             ) : (
               <Text style={styles.avatarTxt}>{authorInitial}</Text>
             )}
@@ -72,18 +77,9 @@ export const PostsScreen = ({ navigation }: any) => {
 
         {/* Dynamic Stats Row */}
         <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statEmoji}>👁️</Text>
-            <Text style={styles.statLabel}>{viewsCount} Views</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statEmoji}>❤️</Text>
-            <Text style={styles.statLabel}>{likesCount} Likes</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statEmoji}>💬</Text>
-            <Text style={styles.statLabel}>{commentsCount} Comments</Text>
-          </View>
+          <Text style={styles.statsText}>
+            {viewsCount} views  •  {likesCount} likes  •  {commentsCount} comments
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -149,16 +145,16 @@ const styles = StyleSheet.create({
   },
   postCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: 12,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.01,
+    shadowRadius: 6,
+    elevation: 1,
   },
   authorRow: {
     flexDirection: 'row',
@@ -228,25 +224,17 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   statsRow: {
-    flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: COLORS.borderLight,
     paddingTop: SPACING.sm,
     marginTop: SPACING.sm,
-    justifyContent: 'space-between',
   },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statEmoji: {
-    fontSize: 14,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+  statsText: {
+    fontSize: 11,
+    fontWeight: '800',
     color: COLORS.textLightSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   errorContainer: {
     flex: 1,

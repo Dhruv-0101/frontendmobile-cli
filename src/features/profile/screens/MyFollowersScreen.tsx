@@ -13,6 +13,7 @@ import {
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import { useFollowers } from '../hooks/profileHooks';
+import { getAvatarUri } from '../../../shared/utils/avatar';
 
 export const MyFollowersScreen = ({ navigation }: any) => {
   const { data: followers = [], isLoading } = useFollowers();
@@ -21,7 +22,7 @@ export const MyFollowersScreen = ({ navigation }: any) => {
   const getAvatarStyle = (name: string) => {
     const initial = name ? name[0].toUpperCase() : 'C';
     const charCode = initial.charCodeAt(0);
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444'];
+    const colors = ['#0d9488', '#0f766e', '#b45309', '#be123c', '#8b5cf6', '#3b82f6'];
     const color = colors[charCode % colors.length];
     return { initial, color };
   };
@@ -35,7 +36,7 @@ export const MyFollowersScreen = ({ navigation }: any) => {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backBtnText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Followers</Text>
+        <Text style={styles.headerTitle}>Followers</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -55,11 +56,12 @@ export const MyFollowersScreen = ({ navigation }: any) => {
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
             {followers.map((item: any) => {
               const { initial, color } = getAvatarStyle(item.username);
+              const avatarUrl = getAvatarUri(item.profilePicture);
               return (
                 <View key={item.id} style={styles.userListItem}>
                   <View style={styles.avatarWrapper}>
-                    {item.profilePicture ? (
-                      <Image source={{ uri: item.profilePicture }} style={styles.avatarImg} />
+                    {avatarUrl ? (
+                      <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
                     ) : (
                       <View style={[styles.avatarCircle, { backgroundColor: color }]}>
                         <Text style={styles.avatarLetter}>{initial}</Text>
@@ -177,13 +179,13 @@ const styles = StyleSheet.create({
   avatarLetter: {
     color: COLORS.white,
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: 'bold',
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.textLightPrimary,
   },
@@ -193,10 +195,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   userSubText: {
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textLightSecondary,
-    marginTop: 4,
-    fontWeight: '500',
+    marginTop: 2,
   },
 });
 

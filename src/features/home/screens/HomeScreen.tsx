@@ -15,6 +15,7 @@ import { useAppSelector } from '../../../store/hooks';
 import TopHeader from '../../../shared/components/TopHeader/TopHeader';
 import ROUTES from '../../../shared/constants/routes';
 import { useMyPosts, useFollowers, useFollowing, useEarnings } from '../../profile/hooks/profileHooks';
+import { getAvatarUri } from '../../../shared/utils/avatar';
 
 export const HomeScreen = ({ navigation }: any) => {
   const user = useAppSelector((state) => state.auth.user);
@@ -27,6 +28,7 @@ export const HomeScreen = ({ navigation }: any) => {
 
   const username = user?.username || 'Creator';
   const initial = username[0].toUpperCase();
+  const avatarUrl = getAvatarUri(user?.profilePicture);
 
   // Performance calculations
   const totalPosts = Array.isArray(userPosts) ? userPosts.length : 0;
@@ -40,8 +42,6 @@ export const HomeScreen = ({ navigation }: any) => {
       }, 0)
     : 0;
 
-  console.log('Dashboard analytics userPosts:', JSON.stringify(userPosts));
-  
   const totalLikes = userPosts.reduce(
     (sum: number, p: any) => sum + (p.likedislikes?.filter((l: any) => l.liked).length || 0),
     0
@@ -82,8 +82,8 @@ export const HomeScreen = ({ navigation }: any) => {
               onPress={() => navigation.navigate(ROUTES.PROFILE)}
               style={styles.avatarWrapper}
             >
-              {user?.profilePicture ? (
-                <Image source={{ uri: user.profilePicture }} style={styles.avatarImg} />
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   <Text style={styles.avatarText}>{initial}</Text>
@@ -113,35 +113,31 @@ export const HomeScreen = ({ navigation }: any) => {
           {/* Performance Grid */}
           <View style={styles.gridRow}>
             <TouchableOpacity
-              style={styles.statCard}
+              style={[styles.statCard, { borderLeftColor: COLORS.primary }]}
               activeOpacity={0.9}
               onPress={() => navigation.navigate(ROUTES.MY_POSTS)}
             >
-              <Text style={styles.statEmoji}>✍️</Text>
               <Text style={styles.statValue}>{totalPosts}</Text>
               <Text style={styles.statLabel}>Stories Created</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.statCard}
+              style={[styles.statCard, { borderLeftColor: COLORS.secondary }]}
               activeOpacity={0.9}
               onPress={() => navigation.navigate(ROUTES.MY_POSTS)}
             >
-              <Text style={styles.statEmoji}>📈</Text>
               <Text style={styles.statValue}>{totalViews}</Text>
               <Text style={styles.statLabel}>Total Views</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.gridRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>❤️</Text>
+            <View style={[styles.statCard, { borderLeftColor: '#0f766e' }]}>
               <Text style={styles.statValue}>{totalLikes}</Text>
               <Text style={styles.statLabel}>Total Likes</Text>
             </View>
 
-            <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>👎</Text>
+            <View style={[styles.statCard, { borderLeftColor: COLORS.danger }]}>
               <Text style={styles.statValue}>{totalDislikes}</Text>
               <Text style={styles.statLabel}>Total Dislikes</Text>
             </View>
@@ -149,21 +145,19 @@ export const HomeScreen = ({ navigation }: any) => {
 
           <View style={styles.gridRow}>
             <TouchableOpacity
-              style={styles.statCard}
+              style={[styles.statCard, { borderLeftColor: COLORS.warning }]}
               activeOpacity={0.9}
               onPress={() => navigation.navigate(ROUTES.MY_FOLLOWERS)}
             >
-              <Text style={styles.statEmoji}>👥</Text>
               <Text style={styles.statValue}>{followers.length}</Text>
               <Text style={styles.statLabel}>Followers</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.statCard}
+              style={[styles.statCard, { borderLeftColor: '#8b5cf6' }]}
               activeOpacity={0.9}
               onPress={() => navigation.navigate(ROUTES.MY_FOLLOWING)}
             >
-              <Text style={styles.statEmoji}>👤</Text>
               <Text style={styles.statValue}>{following.length}</Text>
               <Text style={styles.statLabel}>Following</Text>
             </TouchableOpacity>
@@ -172,13 +166,12 @@ export const HomeScreen = ({ navigation }: any) => {
           {/* Comments and Growth summary */}
           <View style={styles.gridRowSingle}>
             <TouchableOpacity
-              style={styles.statCardSingle}
+              style={[styles.statCardSingle, { borderLeftColor: '#0ea5e9' }]}
               activeOpacity={0.9}
               onPress={() => navigation.navigate(ROUTES.MY_POSTS)}
             >
               <View style={styles.commentsRow}>
                 <View>
-                  <Text style={styles.statEmoji}>💬</Text>
                   <Text style={styles.statLabelSingle}>Total Comments Received</Text>
                 </View>
                 <Text style={styles.statValueSingle}>{totalComments}</Text>
@@ -189,13 +182,13 @@ export const HomeScreen = ({ navigation }: any) => {
           {/* Quick Tips */}
           <Text style={styles.sectionTitle}>Growth Tips</Text>
           <View style={styles.tipCard}>
-            <Text style={styles.tipTitle}>💡 High engagement formatting</Text>
+            <Text style={styles.tipTitle}>High engagement formatting</Text>
             <Text style={styles.tipDesc}>
               Use headers (H1/H2/H3) and lists when formatting with the rich editor to improve readability.
             </Text>
           </View>
           <View style={styles.tipCard}>
-            <Text style={styles.tipTitle}>⚡ Active Audience</Text>
+            <Text style={styles.tipTitle}>Active Audience</Text>
             <Text style={styles.tipDesc}>
               Reply to comments on your post details screen to build community relationships and increase views.
             </Text>
@@ -286,45 +279,45 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
+    borderLeftWidth: 4,
     shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  statEmoji: {
-    fontSize: 22,
-    marginBottom: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.01,
+    shadowRadius: 6,
+    elevation: 1,
   },
   statValue: {
-    fontSize: 22,
-    fontWeight: '900',
+    fontSize: 20,
+    fontWeight: '800',
     color: COLORS.textLightPrimary,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: COLORS.textLightSecondary,
-    fontWeight: '700',
+    fontWeight: '800',
     marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   gridRowSingle: {
     marginBottom: SPACING.md,
   },
   statCardSingle: {
     backgroundColor: COLORS.white,
-    borderRadius: 20,
+    borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
+    borderLeftWidth: 4,
     shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.01,
+    shadowRadius: 6,
+    elevation: 1,
   },
   commentsRow: {
     flexDirection: 'row',
@@ -332,67 +325,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statLabelSingle: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textLightSecondary,
-    fontWeight: '700',
-    marginTop: 2,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   statValueSingle: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: COLORS.primary,
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.secondary,
   },
   earningsCard: {
     backgroundColor: COLORS.primary,
-    borderRadius: 20,
+    borderRadius: 12,
     padding: SPACING.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 6,
     marginBottom: SPACING.md,
   },
   earningsLabel: {
     color: COLORS.white,
     opacity: 0.8,
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 1,
   },
   earningsValue: {
     color: COLORS.white,
-    fontSize: 30,
-    fontWeight: '900',
+    fontSize: 28,
+    fontWeight: '800',
     marginTop: 4,
   },
   payoutBtn: {
     backgroundColor: COLORS.white,
     paddingHorizontal: SPACING.lg,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   payoutBtnText: {
     color: COLORS.primary,
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 12,
   },
   tipCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.secondary,
     marginBottom: SPACING.sm,
   },
   tipTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
     color: COLORS.textLightPrimary,
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tipDesc: {
     fontSize: 12,

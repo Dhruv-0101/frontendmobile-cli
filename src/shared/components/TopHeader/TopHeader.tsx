@@ -6,6 +6,8 @@ import SPACING from '../../constants/spacing';
 import ROUTES from '../../constants/routes';
 import { useAppSelector } from '../../../store/hooks';
 import { useNotifications } from '../../../features/profile/hooks/profileHooks';
+import { RankingsIcon, AlertsIcon } from '../Icons';
+import { getAvatarUri } from '../../utils/avatar';
 
 export const TopHeader = () => {
   const navigation = useNavigation<any>();
@@ -17,13 +19,14 @@ export const TopHeader = () => {
 
   const username = user?.username || 'Creator';
   const initial = username[0].toUpperCase();
+  const avatarUrl = getAvatarUri(user?.profilePicture);
 
   return (
     <View style={styles.headerContainer}>
       {/* Brand logo title */}
       <TouchableOpacity onPress={() => navigation.navigate(ROUTES.HOME)}>
         <Text style={styles.brandTitle}>
-          Blog<Text style={styles.brandTitleSec}>Mapp</Text>
+          BLOG<Text style={styles.brandTitleSec}>MAPP</Text>
         </Text>
       </TouchableOpacity>
 
@@ -35,7 +38,7 @@ export const TopHeader = () => {
           onPress={() => navigation.navigate(ROUTES.RANKINGS)}
           activeOpacity={0.7}
         >
-          <Text style={styles.iconEmoji}>🏆</Text>
+          <RankingsIcon color={COLORS.warning} size={18} />
         </TouchableOpacity>
 
         {/* Notifications */}
@@ -44,7 +47,7 @@ export const TopHeader = () => {
           onPress={() => navigation.navigate(ROUTES.NOTIFICATIONS)}
           activeOpacity={0.7}
         >
-          <Text style={styles.iconEmoji}>🔔</Text>
+          <AlertsIcon color={COLORS.primary} size={18} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -58,8 +61,8 @@ export const TopHeader = () => {
           onPress={() => navigation.navigate(ROUTES.PROFILE)}
           activeOpacity={0.7}
         >
-          {user?.profilePicture ? (
-            <Image source={{ uri: user.profilePicture }} style={styles.avatarImg} />
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
           ) : (
             <View style={styles.avatarPlaceholder}>
               <Text style={styles.avatarText}>{initial}</Text>
@@ -83,13 +86,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   brandTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
     color: COLORS.primary,
-    letterSpacing: -0.5,
+    letterSpacing: 1.5,
   },
   brandTitleSec: {
-    color: COLORS.success,
+    color: COLORS.secondary,
   },
   controlsRow: {
     flexDirection: 'row',
@@ -97,30 +100,23 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.backgroundLight,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-  },
-  iconEmoji: {
-    fontSize: 16,
   },
   badge: {
     position: 'absolute',
     top: -2,
     right: -2,
-    backgroundColor: COLORS.danger,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    backgroundColor: COLORS.secondary,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 2,
-    borderWidth: 1,
-    borderColor: COLORS.white,
   },
   badgeText: {
     color: COLORS.white,
@@ -131,16 +127,16 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   avatarImg: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   avatarPlaceholder: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -148,7 +144,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: COLORS.white,
     fontWeight: '800',
-    fontSize: 13,
+    fontSize: 12,
   },
 });
 

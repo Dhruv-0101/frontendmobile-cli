@@ -7,6 +7,7 @@ import HomeScreen from '../features/home/screens/HomeScreen';
 import PostsScreen from '../features/posts/screens/PostsScreen';
 import ProfileScreen from '../features/profile/screens/ProfileScreen';
 import WritePostScreen from '../features/posts/screens/WritePostScreen';
+import { HomeIcon, FeedIcon, WriteIcon } from '../shared/components/Icons';
 
 const Tab = createBottomTabNavigator();
 
@@ -15,26 +16,31 @@ export const BottomTabNavigator = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused, size }) => {
-          let iconText = '';
+        tabBarIcon: ({ color, size }) => {
           if (route.name === ROUTES.HOME) {
-            iconText = focused ? '🏠' : '🏡';
+            return <HomeIcon color={color} size={size - 2} />;
           } else if (route.name === ROUTES.POSTS) {
-            iconText = focused ? '📰' : '🗞️';
+            return <FeedIcon color={color} size={size - 2} />;
           } else if (route.name === ROUTES.WRITE) {
-            iconText = focused ? '✍️' : '✏️';
+            return <WriteIcon color={color} size={size - 2} />;
           }
-          return <Text style={{ fontSize: size }}>{iconText}</Text>;
+          return null;
         },
-        tabBarActiveTintColor: COLORS.primary,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '800',
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+          marginBottom: 4,
+        },
+        tabBarActiveTintColor: COLORS.secondary,
         tabBarInactiveTintColor: COLORS.textLightSecondary,
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: COLORS.borderLight,
           backgroundColor: COLORS.white,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: 56,
+          paddingTop: 6,
         },
       })}
     >

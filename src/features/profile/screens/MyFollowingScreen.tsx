@@ -15,6 +15,7 @@ import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import { useFollowing } from '../hooks/profileHooks';
 import { useFollowUser, useUnfollowUser } from '../../posts/hooks/postHooks';
+import { getAvatarUri } from '../../../shared/utils/avatar';
 
 export const MyFollowingScreen = ({ navigation }: any) => {
   const { data: following = [], isLoading, refetch } = useFollowing();
@@ -22,18 +23,9 @@ export const MyFollowingScreen = ({ navigation }: any) => {
   const followMutation = useFollowUser();
   const unfollowMutation = useUnfollowUser();
 
-  // Generate color avatar helper
-  const getAvatarStyle = (name: string) => {
-    const initial = name ? name[0].toUpperCase() : 'C';
-    const charCode = initial.charCodeAt(0);
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444'];
-    const color = colors[charCode % colors.length];
-    return { initial, color };
-  };
-
-  const handleUnfollowCreator = (creatorId: number, username: string) => {
+  const handleUnfollow = (id: number, username: string) => {
     Alert.alert(
-      'Unfollow User',
+      'Unfollow Creator',
       `Are you sure you want to stop following ${username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -41,12 +33,9 @@ export const MyFollowingScreen = ({ navigation }: any) => {
           text: 'Unfollow',
           style: 'destructive',
           onPress: () => {
-            unfollowMutation.mutate(creatorId, {
+            unfollowMutation.mutate(id, {
               onSuccess: () => {
                 refetch();
-              },
-              onError: (err: any) => {
-                Alert.alert('Error', err.response?.data?.message || 'Failed to unfollow.');
               },
             });
           },
@@ -55,11 +44,19 @@ export const MyFollowingScreen = ({ navigation }: any) => {
     );
   };
 
+  const getAvatarStyle = (name: string) => {
+    const initial = name ? name[0].toUpperCase() : 'C';
+    const charCode = name ? name.charCodeAt(0) : 67;
+    const hue = (charCode * 37) % 360;
+    const color = `hsl(${hue}, 50%, 40%)`;
+    return { initial, color };
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
       
-      {/* Header */}
+      {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backBtnText}>←</Text>
@@ -85,12 +82,13 @@ export const MyFollowingScreen = ({ navigation }: any) => {
             {following.map((item: any) => {
               const { initial, color } = getAvatarStyle(item.username);
               const isToggling = unfollowMutation.isPending && unfollowMutation.variables === item.id;
+              const avatarUrl = getAvatarUri(item.profilePicture);
               
               return (
                 <View key={item.id} style={styles.userListItem}>
                   <View style={styles.avatarWrapper}>
-                    {item.profilePicture ? (
-                      <Image source={{ uri: item.profilePicture }} style={styles.avatarImg} />
+                    {avatarUrl ? (
+                      <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
                     ) : (
                       <View style={[styles.avatarCircle, { backgroundColor: color }]}>
                         <Text style={styles.avatarLetter}>{initial}</Text>
@@ -104,7 +102,7 @@ export const MyFollowingScreen = ({ navigation }: any) => {
                   </View>
                   <TouchableOpacity
                     style={[styles.followToggleBtn, styles.followingBtn]}
-                    onPress={() => handleUnfollowCreator(item.id, item.username)}
+                    onPress={() => handleUnfollow(item.id, item.username)}
                     disabled={isToggling}
                   >
                     {isToggling ? (

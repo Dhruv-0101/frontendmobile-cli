@@ -175,9 +175,8 @@ export const MyPostsScreen = ({ navigation }: any) => {
                       </Text>
                       <View style={styles.postStats}>
                         <Text style={styles.statText}>
-                          👁️ {Array.isArray(post.postviewers) ? post.postviewers.length : (post.viewsCount || 0)} views
+                          {Array.isArray(post.postviewers) ? post.postviewers.length : (post.viewsCount || 0)} views  •  {post.likedislikes?.filter((l: any) => l.liked).length || 0} likes
                         </Text>
-                        <Text style={styles.statText}>❤️ {post.likedislikes?.filter((l: any) => l.liked).length || 0} likes</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -292,15 +291,15 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     shadowColor: COLORS.black,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
+    shadowOpacity: 0.01,
+    shadowRadius: 6,
     elevation: 1,
   },
   postHeader: {
@@ -331,9 +330,11 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
   },
   statText: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textLightSecondary,
-    fontWeight: '600',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   loadDraftBtn: {
     backgroundColor: COLORS.backgroundLight,

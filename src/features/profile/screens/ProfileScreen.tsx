@@ -20,6 +20,8 @@ import { useNavigation } from '@react-navigation/native';
 import ROUTES from '../../../shared/constants/routes';
 import { useMyPosts, useFollowers, useFollowing, useEarnings } from '../hooks/profileHooks';
 
+import { getAvatarUri } from '../../../shared/utils/avatar';
+
 const DRAWER_WIDTH = 280;
 
 export const ProfileScreen = () => {
@@ -64,6 +66,7 @@ export const ProfileScreen = () => {
   const username = user?.username || 'Creator';
   const email = user?.email || 'creator@blogmapp.com';
   const initial = username[0].toUpperCase();
+  const avatarUrl = getAvatarUri(user?.profilePicture);
 
   return (
     <View style={styles.container}>
@@ -73,15 +76,15 @@ export const ProfileScreen = () => {
       <View style={styles.headerBar}>
         <Text style={styles.headerTitle}>My Profile</Text>
         <TouchableOpacity style={styles.menuTrigger} onPress={openDrawer}>
-          <Text style={styles.menuTriggerText}>⚙️</Text>
+          <Text style={styles.menuTriggerText}>OPTIONS</Text>
         </TouchableOpacity>
       </View>
 
       {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarLarge}>
-          {user?.profilePicture ? (
-            <Image source={{ uri: user.profilePicture }} style={styles.avatarImg} />
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
           ) : (
             <Text style={styles.avatarText}>{initial}</Text>
           )}
@@ -155,7 +158,7 @@ export const ProfileScreen = () => {
                   navigation.navigate(ROUTES.MY_POSTS);
                 }}
               >
-                <Text style={styles.menuItemIcon}>📝</Text>
+                <View style={[styles.menuBullet, { backgroundColor: '#0d9488' }]} />
                 <Text style={styles.menuItemText}>My Posts</Text>
               </TouchableOpacity>
 
@@ -166,7 +169,7 @@ export const ProfileScreen = () => {
                   navigation.navigate(ROUTES.MY_FOLLOWERS);
                 }}
               >
-                <Text style={styles.menuItemIcon}>👥</Text>
+                <View style={[styles.menuBullet, { backgroundColor: '#3b82f6' }]} />
                 <Text style={styles.menuItemText}>My Followers</Text>
               </TouchableOpacity>
 
@@ -177,7 +180,7 @@ export const ProfileScreen = () => {
                   navigation.navigate(ROUTES.MY_FOLLOWING);
                 }}
               >
-                <Text style={styles.menuItemIcon}>👤</Text>
+                <View style={[styles.menuBullet, { backgroundColor: '#8b5cf6' }]} />
                 <Text style={styles.menuItemText}>My Followings</Text>
               </TouchableOpacity>
 
@@ -188,7 +191,7 @@ export const ProfileScreen = () => {
                   navigation.navigate(ROUTES.MY_EARNINGS);
                 }}
               >
-                <Text style={styles.menuItemIcon}>💰</Text>
+                <View style={[styles.menuBullet, { backgroundColor: '#b45309' }]} />
                 <Text style={styles.menuItemText}>My Earnings</Text>
               </TouchableOpacity>
 
@@ -201,7 +204,7 @@ export const ProfileScreen = () => {
                   navigation.navigate(ROUTES.TWO_FACTOR_SETUP);
                 }}
               >
-                <Text style={styles.menuItemIcon}>🔑</Text>
+                <View style={[styles.menuBullet, { backgroundColor: '#0f172a' }]} />
                 <Text style={styles.menuItemText}>Two-Factor Auth</Text>
               </TouchableOpacity>
 
@@ -215,14 +218,14 @@ export const ProfileScreen = () => {
                       navigation.navigate(ROUTES.ADMIN_PANEL);
                     }}
                   >
-                    <Text style={styles.menuItemIcon}>🛡️</Text>
+                    <View style={[styles.menuBullet, { backgroundColor: '#6b7280' }]} />
                     <Text style={styles.menuItemText}>Admin Panel</Text>
                   </TouchableOpacity>
                 </>
               )}
 
               <TouchableOpacity style={[styles.menuItem, styles.menuItemLogout]} onPress={handleLogout}>
-                <Text style={styles.menuItemIcon}>🚪</Text>
+                <View style={[styles.menuBullet, { backgroundColor: '#be123c' }]} />
                 <Text style={[styles.menuItemText, styles.logoutText]}>
                   {logoutMutation.isPending ? 'Logging Out...' : 'Log Out'}
                 </Text>
@@ -254,14 +257,18 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   menuTrigger: {
-    padding: SPACING.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     backgroundColor: COLORS.white,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   menuTriggerText: {
-    fontSize: 18,
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.textLightPrimary,
+    letterSpacing: 1,
   },
   profileHeader: {
     alignItems: 'center',
@@ -407,27 +414,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: SPACING.md,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: SPACING.sm,
     marginBottom: SPACING.xs,
   },
-  menuItemIcon: {
-    fontSize: 20,
+  menuBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     marginRight: SPACING.md,
   },
   menuItemText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '800',
     color: COLORS.textLightPrimary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   drawerDivider: {
     height: 1,
     backgroundColor: COLORS.borderLight,
-    marginVertical: SPACING.md,
+    marginVertical: SPACING.sm,
   },
   menuItemLogout: {
     marginTop: 'auto',
-    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    backgroundColor: '#fff5f5',
   },
   logoutText: {
     color: COLORS.danger,
