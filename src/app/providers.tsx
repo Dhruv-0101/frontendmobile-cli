@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { store } from '../store';
 import { queryClient } from './queryClient';
 import { setupInterceptors } from '../services/authInterceptor';
@@ -40,8 +41,10 @@ setupInterceptors(store.dispatch, logoutState, updateTokens);
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        {/* -> Next, execution goes to mount the children, which is [RootNavigator.tsx]. */}
-        {children}
+        <StripeProvider publishableKey="pk_test_51O7iHlSAP8eyRYOVMSRmnh22wxkhX33MCA93aTN90g3LXaW2h7RYvnb3sM85JRRUxFTsLGXiexCqLo426Pu10thG000RTns3P6">
+          {/* -> Next, execution goes to mount the children, which is [RootNavigator.tsx]. */}
+          <>{children}</>
+        </StripeProvider>
       </QueryClientProvider>
     </Provider>
   );

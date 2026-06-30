@@ -51,6 +51,8 @@ export const useLogin = () => {
         email: data.email,
         profilePicture: data.profilePicture || null,
         isAdmin: !!data.isAdmin,
+        hasSelectedPlan: !!data.hasSelectedPlan,
+        planId: data.planId ? Number(data.planId) : null,
       };
 
       // 2. Save rotated session keys permanently to device disk
@@ -112,6 +114,8 @@ export const useGoogleLogin = () => {
         email: data.email,
         profilePicture: data.profilePicture || null,
         isAdmin: !!data.isAdmin,
+        hasSelectedPlan: !!data.hasSelectedPlan,
+        planId: data.planId ? Number(data.planId) : null,
       };
 
       // 2. Save tokens permanently to device memory (AsyncStorage)
@@ -152,6 +156,8 @@ export const useVerify2FA = () => {
         email: data.email,
         profilePicture: data.profilePicture || null,
         isAdmin: !!data.isAdmin,
+        hasSelectedPlan: !!data.hasSelectedPlan,
+        planId: data.planId ? Number(data.planId) : null,
       };
 
       // Save rotated session keys permanently

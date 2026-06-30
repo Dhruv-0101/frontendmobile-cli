@@ -24,8 +24,11 @@ import Button from '../../../shared/components/Button/Button';
 import Input from '../../../shared/components/Input/Input';
 import { useCategories, useCreatePost } from '../hooks/postHooks';
 import { storage } from '../../../services/storage';
+import { useAppSelector } from '../../../store/hooks';
 
 export const WritePostScreen = ({ navigation }: any) => {
+  const user = useAppSelector((state) => state.auth.user);
+
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -152,6 +155,21 @@ export const WritePostScreen = ({ navigation }: any) => {
 
   // Backend Publish Action
   const handlePublish = () => {
+    if (!user?.hasSelectedPlan) {
+      Alert.alert(
+        'Subscription Required',
+        'You must purchase a premium subscription plan before you can publish stories.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'View Plans',
+            onPress: () => navigation.navigate(ROUTES.PLANS_PURCHASE),
+          },
+        ]
+      );
+      return;
+    }
+
     if (!selectedCategory) {
       Alert.alert('Validation Error', 'Please select a category.');
       return;

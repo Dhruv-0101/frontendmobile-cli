@@ -8,6 +8,7 @@ import MyFollowersScreen from '../features/profile/screens/MyFollowersScreen';
 import MyFollowingScreen from '../features/profile/screens/MyFollowingScreen';
 import MyEarningsScreen from '../features/profile/screens/MyEarningsScreen';
 import AdminPanelScreen from '../features/profile/screens/AdminPanelScreen';
+import PlansPurchaseScreen from '../features/profile/screens/PlansPurchaseScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,35 +16,40 @@ export const AppNavigator = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name={ROUTES.BOTTOM_TABS} component={BottomTabNavigator} />
-      <Stack.Screen 
-        name={ROUTES.TWO_FACTOR_SETUP} 
-        component={TwoFactorSetupScreen} 
-        options={{ headerShown: true, title: 'Two-Factor Setup' }} 
+      <Stack.Screen
+        name={ROUTES.TWO_FACTOR_SETUP}
+        component={TwoFactorSetupScreen}
+        options={{ headerShown: true, title: 'Two-Factor Setup' }}
       />
-      <Stack.Screen 
-        name={ROUTES.MY_POSTS} 
-        component={MyPostsScreen} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name={ROUTES.MY_POSTS}
+        component={MyPostsScreen}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name={ROUTES.MY_FOLLOWERS} 
-        component={MyFollowersScreen} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name={ROUTES.MY_FOLLOWERS}
+        component={MyFollowersScreen}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name={ROUTES.MY_FOLLOWING} 
-        component={MyFollowingScreen} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name={ROUTES.MY_FOLLOWING}
+        component={MyFollowingScreen}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name={ROUTES.MY_EARNINGS} 
-        component={MyEarningsScreen} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name={ROUTES.MY_EARNINGS}
+        component={MyEarningsScreen}
+        options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name={ROUTES.ADMIN_PANEL} 
-        component={AdminPanelScreen} 
-        options={{ headerShown: false }} 
+      <Stack.Screen
+        name={ROUTES.ADMIN_PANEL}
+        component={AdminPanelScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.PLANS_PURCHASE}
+        component={PlansPurchaseScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

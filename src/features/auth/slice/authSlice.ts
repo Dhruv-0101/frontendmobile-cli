@@ -7,6 +7,8 @@ export interface UserState {
   email?: string;
   profilePicture?: string | null;
   isAdmin?: boolean;
+  hasSelectedPlan?: boolean;
+  planId?: number | null;
 }
 
 export interface AuthState {
@@ -106,6 +108,16 @@ const authSlice = createSlice({
     setAuthError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
+    updateUserPlan: (
+      state,
+      action: PayloadAction<{ hasSelectedPlan: boolean; planId: number | null }>
+    ) => {
+      if (state.user) {
+        state.user.hasSelectedPlan = action.payload.hasSelectedPlan;
+        state.user.planId = action.payload.planId;
+        storage.setUser(state.user);
+      }
+    },
   },
   // ==========================================================================
   // [APP EXECUTION FLOW - STEP 4A: AsyncStorage Results Handler]
@@ -139,6 +151,7 @@ export const {
   logoutState,
   setAuthLoading,
   setAuthError,
+  updateUserPlan,
 } = authSlice.actions;
 
 export default authSlice.reducer;
