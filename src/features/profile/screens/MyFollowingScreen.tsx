@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -7,56 +7,51 @@ import {
   ScrollView,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
+  Alert,
+  Image,
 } from 'react-native';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
-
-const INITIAL_FOLLOWINGS = [
-  {
-    id: '1',
-    name: 'Tech Insider',
-    handle: '@techinsider',
-    isFollowing: true,
-    initial: 'T',
-    color: '#8b5cf6',
-  },
-  {
-    id: '2',
-    name: 'Design Matters',
-    handle: '@designmatters',
-    isFollowing: true,
-    initial: 'D',
-    color: '#a855f7',
-  },
-  {
-    id: '3',
-    name: 'AI Journal',
-    handle: '@ai_journal',
-    isFollowing: true,
-    initial: 'A',
-    color: '#f43f5e',
-  },
-  {
-    id: '4',
-    name: 'React Native Team',
-    handle: '@reactnative',
-    isFollowing: false,
-    initial: 'R',
-    color: '#06b6d4',
-  },
-];
+import { useFollowing } from '../hooks/profileHooks';
+import { useFollowUser, useUnfollowUser } from '../../posts/hooks/postHooks';
 
 export const MyFollowingScreen = ({ navigation }: any) => {
-  const [followings, setFollowings] = useState(INITIAL_FOLLOWINGS);
+  const { data: following = [], isLoading, refetch } = useFollowing();
+  
+  const followMutation = useFollowUser();
+  const unfollowMutation = useUnfollowUser();
 
-  const handleToggleFollowing = (id: string) => {
-    setFollowings(
-      followings.map(f => {
-        if (f.id === id) {
-          return { ...f, isFollowing: !f.isFollowing };
-        }
-        return f;
-      }),
+  // Generate color avatar helper
+  const getAvatarStyle = (name: string) => {
+    const initial = name ? name[0].toUpperCase() : 'C';
+    const charCode = initial.charCodeAt(0);
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#ef4444'];
+    const color = colors[charCode % colors.length];
+    return { initial, color };
+  };
+
+  const handleUnfollowCreator = (creatorId: number, username: string) => {
+    Alert.alert(
+      'Unfollow User',
+      `Are you sure you want to stop following ${username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unfollow',
+          style: 'destructive',
+          onPress: () => {
+            unfollowMutation.mutate(creatorId, {
+              onSuccess: () => {
+                refetch();
+              },
+              onError: (err: any) => {
+                Alert.alert('Error', err.response?.data?.message || 'Failed to unfollow.');
+              },
+            });
+          },
+        },
+      ]
     );
   };
 
@@ -74,40 +69,55 @@ export const MyFollowingScreen = ({ navigation }: any) => {
       </View>
 
       <View style={styles.content}>
-        {followings.length === 0 ? (
+        {isLoading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Fetching creators you follow...</Text>
+          </View>
+        ) : following.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateEmoji}>👤</Text>
             <Text style={styles.emptyStateText}>You aren't following anyone yet</Text>
+            <Text style={styles.emptyStateSub}>Follow other creators from the story feed to see them here.</Text>
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {followings.map(item => (
-              <View key={item.id} style={styles.userListItem}>
-                <View style={[styles.avatarCircle, { backgroundColor: item.color }]}>
-                  <Text style={styles.avatarLetter}>{item.initial}</Text>
-                </View>
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>{item.name}</Text>
-                  <Text style={styles.userHandle}>{item.handle}</Text>
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.followToggleBtn,
-                    item.isFollowing ? styles.followingBtn : styles.followBtn,
-                  ]}
-                  onPress={() => handleToggleFollowing(item.id)}
-                >
-                  <Text
-                    style={[
-                      styles.followToggleBtnText,
-                      item.isFollowing ? styles.followingBtnText : styles.followBtnText,
-                    ]}
+            {following.map((item: any) => {
+              const { initial, color } = getAvatarStyle(item.username);
+              const isToggling = unfollowMutation.isPending && unfollowMutation.variables === item.id;
+              
+              return (
+                <View key={item.id} style={styles.userListItem}>
+                  <View style={styles.avatarWrapper}>
+                    {item.profilePicture ? (
+                      <Image source={{ uri: item.profilePicture }} style={styles.avatarImg} />
+                    ) : (
+                      <View style={[styles.avatarCircle, { backgroundColor: color }]}>
+                        <Text style={styles.avatarLetter}>{initial}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>{item.username}</Text>
+                    <Text style={styles.userHandle}>@{item.username.toLowerCase()}</Text>
+                    {item.email && <Text style={styles.userSubText}>{item.email}</Text>}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.followToggleBtn, styles.followingBtn]}
+                    onPress={() => handleUnfollowCreator(item.id, item.username)}
+                    disabled={isToggling}
                   >
-                    {item.isFollowing ? 'Following' : 'Follow'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+                    {isToggling ? (
+                      <ActivityIndicator size="small" color={COLORS.primary} />
+                    ) : (
+                      <Text style={[styles.followToggleBtnText, styles.followingBtnText]}>
+                        Following
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </ScrollView>
         )}
       </View>
@@ -149,11 +159,22 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING.md,
   },
+  loadingBox: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.textLightSecondary,
+    fontSize: 14,
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
+    paddingVertical: 100,
   },
   emptyStateEmoji: {
     fontSize: 64,
@@ -164,7 +185,13 @@ const styles = StyleSheet.create({
     color: COLORS.textLightSecondary,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xs,
+  },
+  emptyStateSub: {
+    fontSize: 13,
+    color: COLORS.textLightSecondary,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.md,
   },
   userListItem: {
     flexDirection: 'row',
@@ -176,13 +203,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
+  avatarWrapper: {
+    marginRight: SPACING.md,
+  },
   avatarCircle: {
     width: 48,
     height: 48,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING.md,
+  },
+  avatarImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarLetter: {
     color: COLORS.white,
@@ -202,15 +236,19 @@ const styles = StyleSheet.create({
     color: COLORS.textLightSecondary,
     marginTop: 2,
   },
+  userSubText: {
+    fontSize: 11,
+    color: COLORS.textLightSecondary,
+    marginTop: 4,
+    fontWeight: '500',
+  },
   followToggleBtn: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
     minWidth: 90,
     alignItems: 'center',
-  },
-  followBtn: {
-    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
   },
   followingBtn: {
     backgroundColor: COLORS.backgroundLight,
@@ -220,9 +258,6 @@ const styles = StyleSheet.create({
   followToggleBtnText: {
     fontSize: 13,
     fontWeight: '700',
-  },
-  followBtnText: {
-    color: COLORS.white,
   },
   followingBtnText: {
     color: COLORS.textLightSecondary,

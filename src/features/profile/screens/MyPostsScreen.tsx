@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,62 +8,70 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import ROUTES from '../../../shared/constants/routes';
-
-const INITIAL_POSTS = [
-  {
-    id: '1',
-    title: 'The Future of AI in Mobile App Development',
-    excerpt:
-      'Explore how deep learning and large language models are transforming user experience in React Native applications.',
-    date: 'June 25, 2026',
-    views: 342,
-    likes: 89,
-    status: 'published',
-  },
-  {
-    id: '2',
-    title: 'Mastering TypeScript & Redux Toolkit',
-    excerpt:
-      'A comprehensive guide on structuring scaleable React Native state managers with strict type safety.',
-    date: 'June 18, 2026',
-    views: 189,
-    likes: 45,
-    status: 'published',
-  },
-  {
-    id: '3',
-    title: 'Building Premium Micro-Animations',
-    excerpt:
-      'Draft about making components feel premium using React Native Animated API.',
-    date: 'Draft',
-    views: 0,
-    likes: 0,
-    status: 'draft',
-  },
-];
+import { useMyPosts } from '../hooks/profileHooks';
+import { useDeletePost } from '../../posts/hooks/postHooks';
+import { storage } from '../../../services/storage';
+import { formatDate } from '../../../shared/utils/date';
 
 export const MyPostsScreen = ({ navigation }: any) => {
-  const [posts, setPosts] = useState(INITIAL_POSTS);
   const [activePostTab, setActivePostTab] = useState<'published' | 'draft'>('published');
+  const [drafts, setDrafts] = useState<any[]>([]);
 
-  const handleDeletePost = (id: string) => {
-    Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          setPosts(posts.filter(p => p.id !== id));
-        },
-      },
-    ]);
+  // Queries & Mutations
+  const { data: userPosts = [], isLoading: isLoadingPosts, refetch } = useMyPosts();
+  const deletePostMutation = useDeletePost();
+
+  // Load offline drafts from AsyncStorage
+  const loadDrafts = async () => {
+    try {
+      const storedDrafts = await storage.getDrafts();
+      setDrafts(storedDrafts);
+    } catch (err) {
+      console.error('Failed to load drafts:', err);
+    }
   };
 
-  const filteredPosts = posts.filter(p => p.status === activePostTab);
+  useEffect(() => {
+    loadDrafts();
+    refetch();
+  }, []);
+
+  const handleDeletePost = (id: number | string, isDraft: boolean) => {
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to permanently delete this post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (isDraft) {
+              await storage.deleteDraft(id.toString());
+              await loadDrafts();
+            } else {
+              deletePostMutation.mutate(Number(id), {
+                onSuccess: () => {
+                  Alert.alert('Success', 'Post deleted successfully.');
+                },
+                onError: (err: any) => {
+                  Alert.alert(
+                    'Error',
+                    err.response?.data?.message || 'Failed to delete the post.'
+                  );
+                },
+              });
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -94,7 +102,7 @@ export const MyPostsScreen = ({ navigation }: any) => {
                 activePostTab === 'published' && styles.tabButtonTextActive,
               ]}
             >
-              Published ({posts.filter(p => p.status === 'published').length})
+              Published ({userPosts.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -110,15 +118,31 @@ export const MyPostsScreen = ({ navigation }: any) => {
                 activePostTab === 'draft' && styles.tabButtonTextActive,
               ]}
             >
-              Drafts ({posts.filter(p => p.status === 'draft').length})
+              Drafts ({drafts.length})
             </Text>
           </TouchableOpacity>
         </View>
 
-        {filteredPosts.length === 0 ? (
+        {isLoadingPosts ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Fetching your posts...</Text>
+          </View>
+        ) : activePostTab === 'published' && userPosts.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateEmoji}>📝</Text>
-            <Text style={styles.emptyStateText}>No {activePostTab} posts found</Text>
+            <Text style={styles.emptyStateText}>No published posts found</Text>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate(ROUTES.WRITE)}
+            >
+              <Text style={styles.actionButtonText}>Write a Post</Text>
+            </TouchableOpacity>
+          </View>
+        ) : activePostTab === 'draft' && drafts.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateEmoji}>📂</Text>
+            <Text style={styles.emptyStateText}>No drafts found</Text>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => navigation.navigate(ROUTES.WRITE)}
@@ -128,26 +152,58 @@ export const MyPostsScreen = ({ navigation }: any) => {
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {filteredPosts.map(post => (
-              <View key={post.id} style={styles.card}>
-                <View style={styles.postHeader}>
-                  <Text style={styles.postDate}>{post.date}</Text>
-                  <TouchableOpacity onPress={() => handleDeletePost(post.id)}>
-                    <Text style={styles.deleteText}>🗑️</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.postTitle}>{post.title}</Text>
-                <Text style={styles.postExcerpt} numberOfLines={2}>
-                  {post.excerpt}
-                </Text>
-                {post.status === 'published' && (
-                  <View style={styles.postStats}>
-                    <Text style={styles.statText}>👁️ {post.views} views</Text>
-                    <Text style={styles.statText}>❤️ {post.likes} likes</Text>
-                  </View>
-                )}
-              </View>
-            ))}
+            {activePostTab === 'published'
+              ? userPosts.map((post: any) => {
+                  const rawExcerpt = post.description ? post.description.replace(/<[^>]*>?/gm, '') : '';
+                  const shortExcerpt = rawExcerpt.length > 120 ? rawExcerpt.slice(0, 120) + '...' : rawExcerpt;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={post.id}
+                      activeOpacity={0.9}
+                      style={styles.card}
+                      onPress={() => navigation.navigate(ROUTES.POST_DETAILS, { postId: post.id })}
+                    >
+                      <View style={styles.postHeader}>
+                        <Text style={styles.postDate}>{formatDate(post.createdAt)}</Text>
+                        <TouchableOpacity onPress={() => handleDeletePost(post.id, false)}>
+                          <Text style={styles.deleteText}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.postExcerpt} numberOfLines={3}>
+                        {shortExcerpt}
+                      </Text>
+                      <View style={styles.postStats}>
+                        <Text style={styles.statText}>👁️ {post.viewsCount || 0} views</Text>
+                        <Text style={styles.statText}>❤️ {post.likedislikes?.filter((l: any) => l.liked).length || 0} likes</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              : drafts.map((draft: any) => {
+                  const rawExcerpt = draft.description ? draft.description.replace(/<[^>]*>?/gm, '') : '';
+                  const shortExcerpt = rawExcerpt.length > 120 ? rawExcerpt.slice(0, 120) + '...' : rawExcerpt;
+
+                  return (
+                    <View key={draft.id} style={styles.card}>
+                      <View style={styles.postHeader}>
+                        <Text style={styles.postDate}>Saved Draft</Text>
+                        <TouchableOpacity onPress={() => handleDeletePost(draft.id, true)}>
+                          <Text style={styles.deleteText}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.postExcerpt} numberOfLines={3}>
+                        {shortExcerpt}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.loadDraftBtn}
+                        onPress={() => navigation.navigate(ROUTES.WRITE, { loadDraftId: draft.id })}
+                      >
+                        <Text style={styles.loadDraftBtnText}>✏️ Edit Draft</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
 
             <TouchableOpacity
               style={[styles.actionButton, { marginTop: SPACING.md }]}
@@ -198,67 +254,39 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: COLORS.borderLight,
-    borderRadius: 12,
-    padding: 4,
     marginBottom: SPACING.md,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    overflow: 'hidden',
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
-    borderRadius: 10,
   },
   tabButtonActive: {
-    backgroundColor: COLORS.white,
-    shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: COLORS.primary,
   },
   tabButtonText: {
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: COLORS.textLightSecondary,
-    fontSize: 14,
   },
   tabButtonTextActive: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.lg,
-  },
-  emptyStateEmoji: {
-    fontSize: 64,
-    marginBottom: SPACING.md,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: COLORS.textLightSecondary,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: SPACING.lg,
-  },
-  actionButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  actionButtonText: {
     color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 15,
+  },
+  loadingBox: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.textLightSecondary,
+    fontSize: 14,
   },
   card: {
     backgroundColor: COLORS.white,
@@ -267,6 +295,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
   },
   postHeader: {
     flexDirection: 'row',
@@ -275,38 +308,71 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
   },
   postDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textLightSecondary,
-    fontWeight: '500',
   },
   deleteText: {
-    fontSize: 16,
-    opacity: 0.7,
-  },
-  postTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textLightPrimary,
-    marginBottom: 6,
+    fontSize: 15,
   },
   postExcerpt: {
     fontSize: 14,
-    color: COLORS.textLightSecondary,
+    color: COLORS.textLightPrimary,
     lineHeight: 20,
-    marginBottom: SPACING.sm,
+    marginVertical: SPACING.xs,
   },
   postStats: {
     flexDirection: 'row',
+    marginTop: SPACING.sm,
+    gap: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.borderLight,
     paddingTop: SPACING.sm,
-    marginTop: SPACING.xs,
   },
   statText: {
     fontSize: 12,
     color: COLORS.textLightSecondary,
-    marginRight: SPACING.md,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  loadDraftBtn: {
+    backgroundColor: COLORS.backgroundLight,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: SPACING.sm,
+  },
+  loadDraftBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  emptyStateEmoji: {
+    fontSize: 48,
+    marginBottom: SPACING.sm,
+  },
+  emptyStateText: {
+    fontSize: 15,
+    color: COLORS.textLightSecondary,
+    marginBottom: SPACING.md,
+  },
+  actionButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
 

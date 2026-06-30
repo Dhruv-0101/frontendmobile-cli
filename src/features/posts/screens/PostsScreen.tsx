@@ -13,17 +13,31 @@ import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import Loader from '../../../shared/components/Loader/Loader';
 import { formatDate } from '../../../shared/utils/date';
+import ROUTES from '../../../shared/constants/routes';
 
-export const PostsScreen = () => {
+export const PostsScreen = ({ navigation }: any) => {
   const { data: posts, isLoading, error, refetch, isRefetching } = usePosts();
 
   const renderPostItem = ({ item }: { item: any }) => {
-    // Generate initials for avatar if no profile picture
     const authorName = item.user?.username || 'Creator';
     const authorInitial = authorName[0].toUpperCase();
+    
+    // Stats calculation from fetched relations
+    const viewsCount = item.postviewers?.length || 0;
+    const likesCount = item.likedislikes?.filter((l: any) => l.liked).length || 0;
+    const commentsCount = item.comments?.length || 0;
+
+    // Truncate description text cleanly
+    const rawDescription = item.description ? item.description.replace(/<[^>]*>?/gm, '') : '';
+    const isTruncated = rawDescription.length > 120;
+    const shortDescription = isTruncated ? rawDescription.slice(0, 120) + '...' : rawDescription;
 
     return (
-      <View style={styles.postCard}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        style={styles.postCard}
+        onPress={() => navigation.navigate(ROUTES.POST_DETAILS, { postId: item.id })}
+      >
         {/* Author Header */}
         <View style={styles.authorRow}>
           <View style={styles.avatar}>
@@ -33,15 +47,21 @@ export const PostsScreen = () => {
               <Text style={styles.avatarTxt}>{authorInitial}</Text>
             )}
           </View>
-          <View>
+          <View style={styles.authorMeta}>
             <Text style={styles.authorName}>{authorName}</Text>
             <Text style={styles.postDate}>{formatDate(item.createdAt)}</Text>
           </View>
+          {item.category && (
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{item.category.categoryName}</Text>
+            </View>
+          )}
         </View>
 
-        {/* Content */}
-        <Text style={styles.description} numberOfLines={3}>
-          {item.description ? item.description.replace(/<[^>]*>?/gm, '') : ''}
+        {/* Content Preview */}
+        <Text style={styles.description}>
+          {shortDescription}
+          {isTruncated && <Text style={styles.readMoreText}> Read More</Text>}
         </Text>
 
         {/* Post Image */}
@@ -49,18 +69,22 @@ export const PostsScreen = () => {
           <Image source={{ uri: item.image }} style={styles.postImage} resizeMode="cover" />
         )}
 
-        {/* Bottom Actions Mock */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Text style={styles.actionEmoji}>❤️</Text>
-            <Text style={styles.actionLabel}>Like</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Text style={styles.actionEmoji}>💬</Text>
-            <Text style={styles.actionLabel}>Comment</Text>
-          </TouchableOpacity>
+        {/* Dynamic Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statEmoji}>👁️</Text>
+            <Text style={styles.statLabel}>{viewsCount} Views</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statEmoji}>❤️</Text>
+            <Text style={styles.statLabel}>{likesCount} Likes</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statEmoji}>💬</Text>
+            <Text style={styles.statLabel}>{commentsCount} Comments</Text>
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -72,6 +96,10 @@ export const PostsScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
       
+      <View style={styles.headerBar}>
+        <Text style={styles.headerTitle}>Stories Feed</Text>
+      </View>
+
       {error ? (
         <View style={styles.errorContainer}>
           <Text style={styles.errorEmoji}>📡</Text>
@@ -105,21 +133,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.backgroundLight,
   },
+  headerBar: {
+    height: 56,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
   listContainer: {
     padding: SPACING.md,
   },
   postCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     shadowColor: COLORS.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   authorRow: {
     flexDirection: 'row',
@@ -127,65 +168,85 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primaryLight,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.sm,
   },
   avatarImg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   avatarTxt: {
-    color: COLORS.primary,
-    fontWeight: '700',
-    fontSize: 16,
+    color: COLORS.white,
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  authorMeta: {
+    flex: 1,
   },
   authorName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: COLORS.textLightPrimary,
   },
   postDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textLightSecondary,
-    marginTop: 2,
+    marginTop: 1,
+  },
+  categoryBadge: {
+    backgroundColor: COLORS.backgroundLight,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  categoryBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   description: {
     fontSize: 14,
-    color: COLORS.textLightPrimary,
     lineHeight: 20,
-    marginBottom: SPACING.sm,
+    color: COLORS.textLightPrimary,
+    marginVertical: SPACING.xs,
+  },
+  readMoreText: {
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 13,
   },
   postImage: {
-    width: '100%',
-    height: 200,
+    height: 180,
     borderRadius: 12,
-    marginBottom: SPACING.sm,
-    backgroundColor: COLORS.borderLight,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
-  actionRow: {
+  statsRow: {
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: COLORS.borderLight,
     paddingTop: SPACING.sm,
-    marginTop: SPACING.xs,
-    gap: SPACING.lg,
+    marginTop: SPACING.sm,
+    justifyContent: 'space-between',
   },
-  actionBtn: {
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  actionEmoji: {
-    fontSize: 16,
+  statEmoji: {
+    fontSize: 14,
   },
-  actionLabel: {
-    fontSize: 13,
+  statLabel: {
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.textLightSecondary,
   },
@@ -193,7 +254,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.lg,
+    padding: SPACING.xl,
   },
   errorEmoji: {
     fontSize: 48,
@@ -202,23 +263,21 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: COLORS.textLightSecondary,
-    fontWeight: '500',
     marginBottom: SPACING.md,
   },
   retryBtn: {
     backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
     borderRadius: 10,
   },
   retryBtnText: {
     color: COLORS.white,
     fontWeight: '700',
-    fontSize: 14,
   },
   emptyContainer: {
-    padding: SPACING.xxl,
     alignItems: 'center',
+    paddingVertical: 80,
   },
   emptyEmoji: {
     fontSize: 48,
@@ -227,7 +286,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     color: COLORS.textLightSecondary,
-    fontWeight: '500',
   },
 });
 

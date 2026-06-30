@@ -18,6 +18,7 @@ import { useAppSelector } from '../../../store/hooks';
 import { useLogout } from '../../auth/hooks/authHooks';
 import { useNavigation } from '@react-navigation/native';
 import ROUTES from '../../../shared/constants/routes';
+import { useMyPosts, useFollowers, useFollowing, useEarnings } from '../hooks/profileHooks';
 
 const DRAWER_WIDTH = 280;
 
@@ -25,6 +26,12 @@ export const ProfileScreen = () => {
   const user = useAppSelector((state) => state.auth.user);
   const logoutMutation = useLogout();
   const navigation = useNavigation<any>();
+
+  // Fetch real statistics data
+  const { data: myPosts } = useMyPosts();
+  const { data: followers } = useFollowers();
+  const { data: following } = useFollowing();
+  const { data: earnings } = useEarnings();
   
   // Drawer open state & sliding animation controller
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -83,6 +90,26 @@ export const ProfileScreen = () => {
         <Text style={styles.email}>{email}</Text>
       </View>
 
+      {/* Stats Counter Row */}
+      <View style={styles.statsRow}>
+        <TouchableOpacity style={styles.statBox} onPress={() => navigation.navigate(ROUTES.MY_POSTS)}>
+          <Text style={styles.statNumber}>{myPosts?.length || 0}</Text>
+          <Text style={styles.statLabel}>Posts</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.statBox} onPress={() => navigation.navigate(ROUTES.MY_FOLLOWERS)}>
+          <Text style={styles.statNumber}>{followers?.length || 0}</Text>
+          <Text style={styles.statLabel}>Followers</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.statBox} onPress={() => navigation.navigate(ROUTES.MY_FOLLOWING)}>
+          <Text style={styles.statNumber}>{following?.length || 0}</Text>
+          <Text style={styles.statLabel}>Following</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.statBox} onPress={() => navigation.navigate(ROUTES.MY_EARNINGS)}>
+          <Text style={styles.statNumber}>${earnings?.toFixed(2) || '0.00'}</Text>
+          <Text style={styles.statLabel}>Earnings</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Profile Info Cards */}
       <View style={styles.infoContainer}>
         <View style={styles.infoCard}>
@@ -91,7 +118,9 @@ export const ProfileScreen = () => {
         </View>
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>Subscription Tier</Text>
-          <Text style={styles.infoValue}>Premium Professional</Text>
+          <Text style={styles.infoValue}>
+            {user?.hasSelectedPlan ? 'Premium professional tier' : 'Free tier'}
+          </Text>
         </View>
       </View>
 
@@ -275,6 +304,36 @@ const styles = StyleSheet.create({
     color: COLORS.textLightSecondary,
     marginTop: SPACING.xs,
     fontWeight: '500',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    paddingVertical: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    marginBottom: SPACING.lg,
+    justifyContent: 'space-around',
+    shadowColor: COLORS.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  statBox: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: COLORS.textLightSecondary,
+    fontWeight: '600',
+    marginTop: 2,
   },
   infoContainer: {
     gap: SPACING.md,

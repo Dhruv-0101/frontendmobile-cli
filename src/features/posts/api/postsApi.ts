@@ -37,4 +37,44 @@ export const postsApi = {
     const response = await apiClient.post('/category/create-category', data);
     return response.data;
   },
+
+  getSinglePost: async (postId: number) => {
+    const response = await apiClient.get(`/post/get-single-post/${postId}`);
+    return response.data;
+  },
+
+  likePost: async (postId: number) => {
+    const response = await apiClient.post(`/post/like-post/${postId}`);
+    return response.data;
+  },
+
+  dislikePost: async (postId: number) => {
+    const response = await apiClient.post(`/post/dislike-post/${postId}`);
+    return response.data;
+  },
+
+  followUser: async (followerId: number) => {
+    const response = await apiClient.post(`/users/follow-user/${followerId}`);
+    return response.data;
+  },
+
+  unfollowUser: async (followerId: number) => {
+    const response = await apiClient.post(`/users/unfollow-user/${followerId}`);
+    return response.data;
+  },
+
+  checkFollowing: async (followerId: number) => {
+    const response = await apiClient.get(`/users/get-user-follow/${followerId}`);
+    return response.data;
+  },
+
+  createComment: async (data: { postId: number; content: string }) => {
+    const response = await apiClient.post(`/comment/create-comment/${data.postId}`, { content: data.content });
+    return response.data;
+  },
+
+  deletePost: async (postId: number) => {
+    const response = await apiClient.delete(`/post/delete-single-post/${postId}`);
+    return response.data;
+  },
 };
