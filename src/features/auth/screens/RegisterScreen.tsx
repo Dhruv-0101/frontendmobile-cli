@@ -15,28 +15,42 @@ import SPACING from '../../../shared/constants/spacing';
 import ROUTES from '../../../shared/constants/routes';
 import Input from '../../../shared/components/Input/Input';
 import Button from '../../../shared/components/Button/Button';
-import { useMutation } from '@tanstack/react-query';
-import { authApi } from '../api/authApi';
-import { useGoogleLogin } from '../hooks/useGoogleLogin';
-import { validateUsername, validateEmail, validatePassword } from '../../../shared/utils/validation';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { useGoogleLogin, useRegister } from '../hooks/authHooks';
+import {
+  validateUsername,
+  validateEmail,
+  validatePassword,
+} from '../../../shared/utils/validation';
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 
 export const RegisterScreen = ({ navigation }: any) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ username?: string; email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{
+    username?: string;
+    email?: string;
+    password?: string;
+  }>({});
   const [apiError, setApiError] = useState<string | null>(null);
 
   const googleLoginMutation = useGoogleLogin();
 
+  // 1. Google Handshake: Prepares Google SDK with our Web Client ID on screen mount.
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: '42825930077-qvlf0jo47m0082gg2orpmg284ddf26sv.apps.googleusercontent.com',
+      webClientId:
+        '42825930077-qvlf0jo47m0082gg2orpmg284ddf26sv.apps.googleusercontent.com',
       offlineAccess: false,
     });
   }, []);
 
+  // 2. Google Fast-Pass (Unified Signup/Login): Requests a secure ID token from the selected Google account.
+  // Note: Google Signup and Login share this exact method. When we send the idToken to the backend
+  // via googleLoginMutation, the server automatically registers the user record if they do not exist yet.
   const handleGoogleLogin = async () => {
     try {
       console.log('Starting Google Sign-In (Register)...');
@@ -44,12 +58,16 @@ export const RegisterScreen = ({ navigation }: any) => {
       setApiError(null);
       await GoogleSignin.hasPlayServices();
       try {
+        // Sign out of current Google session to force account selector modal
         await GoogleSignin.signOut();
       } catch (e) {
-        // Ignored
+        // Ignored if no account was active
       }
       const userInfo = await GoogleSignin.signIn();
-      console.log('Google Sign-In response received (Register):', JSON.stringify(userInfo));
+      console.log(
+        'Google Sign-In response received (Register):',
+        JSON.stringify(userInfo),
+      );
 
       if (userInfo.type === 'success') {
         const idToken = userInfo.data.idToken;
@@ -59,14 +77,20 @@ export const RegisterScreen = ({ navigation }: any) => {
         console.log('ID Token retrieved, sending to backend...');
         googleLoginMutation.mutate(idToken);
       } else {
-        console.log('Google Sign-In returned non-success type (Register):', userInfo.type);
-        setApiError(`Sign-In status: ${userInfo.type}. If this was not expected, please check your Google Console configuration.`);
+        console.log(
+          'Google Sign-In returned non-success type (Register):',
+          userInfo.type,
+        );
+        setApiError(
+          `Sign-In status: ${userInfo.type}. If this was not expected, please check your Google Console configuration.`,
+        );
       }
     } catch (error: any) {
       console.error('Google Sign-In Error details (Register):', error);
       console.error('Error Code:', error.code);
       console.error('Error Message:', error.message);
 
+      // Map native Google status codes to clean user-friendly alerts
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
         setApiError('Sign-In cancelled by user.');
       } else if (error.code === statusCodes.IN_PROGRESS) {
@@ -74,24 +98,17 @@ export const RegisterScreen = ({ navigation }: any) => {
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         setApiError('Google Play Services not available or outdated.');
       } else {
-        setApiError(`Google Sign-In failed: Code ${error.code}. ${error.message || ''}`);
+        setApiError(
+          `Google Sign-In failed: Code ${error.code}. ${error.message || ''}`,
+        );
       }
     }
   };
 
-  const registerMutation = useMutation({
-    mutationFn: authApi.register,
-    onSuccess: () => {
-      Alert.alert('Success', 'Registration successful! Please login.', [
-        { text: 'OK', onPress: () => navigation.navigate(ROUTES.LOGIN) },
-      ]);
-    },
-    onError: (error: any) => {
-      const errMsg = error.response?.data?.message || 'Registration failed. Try again.';
-      setApiError(errMsg);
-    },
-  });
+  // 3. Custom SignUp API: Standard email & password submission hook.
+  const registerMutation = useRegister();
 
+  // 4. Form Validator: Checks inputs before firing network calls to save client resources.
   const handleRegister = () => {
     setApiError(null);
     const newErrors: typeof errors = {};
@@ -112,10 +129,27 @@ export const RegisterScreen = ({ navigation }: any) => {
     }
 
     setErrors({});
-    registerMutation.mutate({ username, email, password });
+    registerMutation.mutate(
+      { username, email, password },
+      {
+        onSuccess: () => {
+          Alert.alert('Success', 'Registration successful! Please login.', [
+            { text: 'OK', onPress: () => navigation.navigate(ROUTES.LOGIN) },
+          ]);
+        },
+        onError: (error: any) => {
+          const errMsg =
+            error.response?.data?.message || 'Registration failed. Try again.';
+          setApiError(errMsg);
+        },
+      }
+    );
   };
 
-  const googleErrorMsg = googleLoginMutation.error ? ((googleLoginMutation.error as any).response?.data?.message || googleLoginMutation.error.message) : null;
+  const googleErrorMsg = googleLoginMutation.error
+    ? (googleLoginMutation.error as any).response?.data?.message ||
+      googleLoginMutation.error.message
+    : null;
   const displayedError = apiError || googleErrorMsg;
 
   return (
@@ -123,11 +157,19 @@ export const RegisterScreen = ({ navigation }: any) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={COLORS.backgroundLight}
+      />
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <Text style={styles.appName}>Create Account</Text>
-          <Text style={styles.subtitle}>Join BlogMapp to start writing articles ✍️</Text>
+          <Text style={styles.subtitle}>
+            Join BlogMapp to start writing articles ✍️
+          </Text>
         </View>
 
         <View style={styles.formCard}>
@@ -141,9 +183,10 @@ export const RegisterScreen = ({ navigation }: any) => {
             label="Username"
             placeholder="Choose username"
             value={username}
-            onChangeText={(text) => {
+            onChangeText={text => {
               setUsername(text);
-              if (errors.username) setErrors((prev) => ({ ...prev, username: undefined }));
+              if (errors.username)
+                setErrors(prev => ({ ...prev, username: undefined }));
             }}
             error={errors.username}
           />
@@ -152,9 +195,10 @@ export const RegisterScreen = ({ navigation }: any) => {
             label="Email"
             placeholder="Enter email address"
             value={email}
-            onChangeText={(text) => {
+            onChangeText={text => {
               setEmail(text);
-              if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+              if (errors.email)
+                setErrors(prev => ({ ...prev, email: undefined }));
             }}
             error={errors.email}
             keyboardType="email-address"
@@ -164,9 +208,10 @@ export const RegisterScreen = ({ navigation }: any) => {
             label="Password"
             placeholder="Choose secure password"
             value={password}
-            onChangeText={(text) => {
+            onChangeText={text => {
               setPassword(text);
-              if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+              if (errors.password)
+                setErrors(prev => ({ ...prev, password: undefined }));
             }}
             error={errors.password}
             isPassword

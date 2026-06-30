@@ -8,18 +8,14 @@ import {
   TouchableOpacity,
   StatusBar,
 } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
-import { postsApi } from '../api/postsApi';
+import { usePosts } from '../hooks/postHooks';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import Loader from '../../../shared/components/Loader/Loader';
 import { formatDate } from '../../../shared/utils/date';
 
 export const PostsScreen = () => {
-  const { data: posts, isLoading, error, refetch, isRefetching } = useQuery({
-    queryKey: ['posts'],
-    queryFn: postsApi.getPosts,
-  });
+  const { data: posts, isLoading, error, refetch, isRefetching } = usePosts();
 
   const renderPostItem = ({ item }: { item: any }) => {
     // Generate initials for avatar if no profile picture

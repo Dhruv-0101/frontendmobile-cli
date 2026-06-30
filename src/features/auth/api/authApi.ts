@@ -31,4 +31,24 @@ export const authApi = {
     const response = await apiClient.post('/users/logout');
     return response.data;
   },
+
+  setup2FA: async () => {
+    const response = await apiClient.post('/users/2fa/setup');
+    return response.data;
+  },
+
+  enable2FA: async (data: { secret: string; code: string }) => {
+    const response = await apiClient.post('/users/2fa/enable', data);
+    return response.data;
+  },
+
+  disable2FA: async (code: string) => {
+    const response = await apiClient.post('/users/2fa/disable', { code });
+    return response.data;
+  },
+
+  verify2FA: async (data: { tempToken: string; code: string }) => {
+    const response = await apiClient.post('/users/2fa/verify', data);
+    return response.data;
+  },
 };

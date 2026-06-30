@@ -5,15 +5,22 @@ export const ROUTES = {
   // Auth Screens
   LOGIN: 'Login',
   REGISTER: 'Register',
+  TWO_FACTOR: 'TwoFactor',
+  TWO_FACTOR_SETUP: 'TwoFactorSetup',
   
   // App Screens (Tabs)
   BOTTOM_TABS: 'BottomTabs',
   HOME: 'Home',
   POSTS: 'Posts',
+  WRITE: 'Write',
   PROFILE: 'Profile',
   
   // Details
   POST_DETAILS: 'PostDetails',
+  MY_POSTS: 'MyPosts',
+  MY_FOLLOWERS: 'MyFollowers',
+  MY_FOLLOWING: 'MyFollowing',
+  MY_EARNINGS: 'MyEarnings',
 };
 
 export default ROUTES;

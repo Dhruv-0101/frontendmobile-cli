@@ -1,5 +1,7 @@
 export * from './screens/LoginScreen';
 export * from './screens/RegisterScreen';
+export * from './screens/TwoFactorScreen';
+export * from './screens/TwoFactorSetupScreen';
 export * from './hooks/useLogin';
 export * from './hooks/useGoogleLogin';
 export * from './hooks/useLogout';

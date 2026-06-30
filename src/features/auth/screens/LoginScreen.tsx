@@ -14,30 +14,45 @@ import SPACING from '../../../shared/constants/spacing';
 import ROUTES from '../../../shared/constants/routes';
 import Input from '../../../shared/components/Input/Input';
 import Button from '../../../shared/components/Button/Button';
-import { useLogin } from '../hooks/useLogin';
-import { useGoogleLogin } from '../hooks/useGoogleLogin';
+import { useLogin, useGoogleLogin } from '../hooks/authHooks';
 import { useAppSelector, useAppDispatch } from '../../../store/hooks';
 import { setAuthError } from '../slice/authSlice';
-import { validateUsername, validatePassword } from '../../../shared/utils/validation';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import {
+  validateUsername,
+  validatePassword,
+} from '../../../shared/utils/validation';
+import {
+  GoogleSignin,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 
 export const LoginScreen = ({ navigation }: any) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{
+    username?: string;
+    password?: string;
+  }>({});
 
   const loginMutation = useLogin();
   const googleLoginMutation = useGoogleLogin();
-  const authError = useAppSelector((state) => state.auth.error);
+  const authError = useAppSelector(state => state.auth.error);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: '42825930077-qvlf0jo47m0082gg2orpmg284ddf26sv.apps.googleusercontent.com',
+      webClientId:
+        '42825930077-qvlf0jo47m0082gg2orpmg284ddf26sv.apps.googleusercontent.com',
       offlineAccess: false,
     });
   }, []);
 
+  // ==========================================================================
+  // [APP EXECUTION FLOW - STEP 5: Standard Login Submission]
+  // Triggers when user presses "Log In" with username & password.
+  // Performs local validation check. If valid, sends request to hook.
+  // -> Next, execution goes to [useLogin.ts] to process mutation.
+  // ==========================================================================
   const handleLogin = () => {
     dispatch(setAuthError(null));
     const newErrors: typeof errors = {};
@@ -58,6 +73,12 @@ export const LoginScreen = ({ navigation }: any) => {
     loginMutation.mutate({ username, password });
   };
 
+  // ==========================================================================
+  // [APP EXECUTION FLOW - STEP 5A: Google Sign-In (Unified Flow)]
+  // Triggers when user presses "Continue with Google".
+  // Fetches Google's signed idToken and passes it to the mutation hook.
+  // -> Next, execution goes to [useGoogleLogin.ts] to process the token.
+  // ==========================================================================
   const handleGoogleLogin = async () => {
     try {
       console.log('Starting Google Sign-In...');
@@ -69,7 +90,10 @@ export const LoginScreen = ({ navigation }: any) => {
         // Ignored
       }
       const userInfo = await GoogleSignin.signIn();
-      console.log('Google Sign-In response received:', JSON.stringify(userInfo));
+      console.log(
+        'Google Sign-In response received:',
+        JSON.stringify(userInfo),
+      );
 
       if (userInfo.type === 'success') {
         const idToken = userInfo.data.idToken;
@@ -80,7 +104,11 @@ export const LoginScreen = ({ navigation }: any) => {
         googleLoginMutation.mutate(idToken);
       } else {
         console.log('Google Sign-In returned non-success type:', userInfo.type);
-        dispatch(setAuthError(`Sign-In status: ${userInfo.type}. If this was not expected, please check your Google Console configuration.`));
+        dispatch(
+          setAuthError(
+            `Sign-In status: ${userInfo.type}. If this was not expected, please check your Google Console configuration.`,
+          ),
+        );
       }
     } catch (error: any) {
       console.error('Google Sign-In Error details:', error);
@@ -92,9 +120,15 @@ export const LoginScreen = ({ navigation }: any) => {
       } else if (error.code === statusCodes.IN_PROGRESS) {
         dispatch(setAuthError('Sign-in is already in progress.'));
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        dispatch(setAuthError('Google Play Services not available or outdated.'));
+        dispatch(
+          setAuthError('Google Play Services not available or outdated.'),
+        );
       } else {
-        dispatch(setAuthError(`Google Sign-In failed: Code ${error.code}. ${error.message || ''}`));
+        dispatch(
+          setAuthError(
+            `Google Sign-In failed: Code ${error.code}. ${error.message || ''}`,
+          ),
+        );
       }
     }
   };
@@ -104,11 +138,19 @@ export const LoginScreen = ({ navigation }: any) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={COLORS.backgroundLight}
+      />
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <Text style={styles.appName}>BlogMapp</Text>
-          <Text style={styles.subtitle}>Sign in to join the creator community 🚀</Text>
+          <Text style={styles.subtitle}>
+            Sign in to join the creator community 🚀
+          </Text>
         </View>
 
         <View style={styles.formCard}>
@@ -122,9 +164,10 @@ export const LoginScreen = ({ navigation }: any) => {
             label="Username"
             placeholder="Enter username"
             value={username}
-            onChangeText={(text) => {
+            onChangeText={text => {
               setUsername(text);
-              if (errors.username) setErrors((prev) => ({ ...prev, username: undefined }));
+              if (errors.username)
+                setErrors(prev => ({ ...prev, username: undefined }));
             }}
             error={errors.username}
           />
@@ -133,9 +176,10 @@ export const LoginScreen = ({ navigation }: any) => {
             label="Password"
             placeholder="Enter password"
             value={password}
-            onChangeText={(text) => {
+            onChangeText={text => {
               setPassword(text);
-              if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+              if (errors.password)
+                setErrors(prev => ({ ...prev, password: undefined }));
             }}
             error={errors.password}
             isPassword
