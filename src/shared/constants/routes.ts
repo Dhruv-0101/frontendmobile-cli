@@ -21,6 +21,7 @@ export const ROUTES = {
   MY_FOLLOWERS: 'MyFollowers',
   MY_FOLLOWING: 'MyFollowing',
   MY_EARNINGS: 'MyEarnings',
+  ADMIN_PANEL: 'AdminPanel',
 };
 
 export default ROUTES;

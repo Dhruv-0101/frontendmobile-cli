@@ -176,6 +176,22 @@ export const ProfileScreen = () => {
                 <Text style={styles.menuItemText}>Two-Factor Auth</Text>
               </TouchableOpacity>
 
+              {user?.isAdmin && (
+                <>
+                  <View style={styles.drawerDivider} />
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      closeDrawer();
+                      navigation.navigate(ROUTES.ADMIN_PANEL);
+                    }}
+                  >
+                    <Text style={styles.menuItemIcon}>🛡️</Text>
+                    <Text style={styles.menuItemText}>Admin Panel</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
               <TouchableOpacity style={[styles.menuItem, styles.menuItemLogout]} onPress={handleLogout}>
                 <Text style={styles.menuItemIcon}>🚪</Text>
                 <Text style={[styles.menuItemText, styles.logoutText]}>

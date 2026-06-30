@@ -16,6 +16,7 @@ interface InputProps extends TextInputProps {
   error?: string;
   isPassword?: boolean;
   containerStyle?: ViewStyle;
+  helperText?: string;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -24,6 +25,7 @@ export const Input: React.FC<InputProps> = ({
   isPassword = false,
   containerStyle,
   style,
+  helperText,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -37,10 +39,15 @@ export const Input: React.FC<InputProps> = ({
           styles.inputContainer,
           isFocused && styles.focusedBorder,
           !!error && styles.errorBorder,
+          props.multiline && { height: 'auto', minHeight: 52, paddingVertical: SPACING.xs },
         ]}
       >
         <TextInput
-          style={[styles.input, style]}
+          style={[
+            styles.input,
+            props.multiline && { minHeight: 40, textAlignVertical: 'top' },
+            style,
+          ]}
           placeholderTextColor={COLORS.textLightSecondary}
           secureTextEntry={secureText}
           onFocus={() => setIsFocused(true)}
@@ -59,6 +66,7 @@ export const Input: React.FC<InputProps> = ({
         )}
       </View>
       {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!helperText && !error && <Text style={styles.helperText}>{helperText}</Text>}
     </View>
   );
 };
@@ -106,6 +114,12 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     color: COLORS.danger,
+    marginTop: SPACING.xs,
+    marginLeft: SPACING.xs,
+  },
+  helperText: {
+    fontSize: 12,
+    color: COLORS.textLightSecondary,
     marginTop: SPACING.xs,
     marginLeft: SPACING.xs,
   },

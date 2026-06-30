@@ -7,6 +7,7 @@ import MyPostsScreen from '../features/profile/screens/MyPostsScreen';
 import MyFollowersScreen from '../features/profile/screens/MyFollowersScreen';
 import MyFollowingScreen from '../features/profile/screens/MyFollowingScreen';
 import MyEarningsScreen from '../features/profile/screens/MyEarningsScreen';
+import AdminPanelScreen from '../features/profile/screens/AdminPanelScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -37,6 +38,11 @@ export const AppNavigator = () => {
       <Stack.Screen 
         name={ROUTES.MY_EARNINGS} 
         component={MyEarningsScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name={ROUTES.ADMIN_PANEL} 
+        component={AdminPanelScreen} 
         options={{ headerShown: false }} 
       />
     </Stack.Navigator>

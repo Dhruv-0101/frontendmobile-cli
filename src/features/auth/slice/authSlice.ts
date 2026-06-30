@@ -6,6 +6,7 @@ export interface UserState {
   username: string;
   email?: string;
   profilePicture?: string | null;
+  isAdmin?: boolean;
 }
 
 export interface AuthState {
@@ -30,22 +31,25 @@ const initialState: AuthState = {
 // [APP EXECUTION FLOW - STEP 4: Auth Slice & AsyncStorage Check]
 // This thunk queries AsyncStorage to see if the user was logged in previously.
 // ============================================================================
-export const restoreAuth = createAsyncThunk('auth/restoreAuth', async (_, { rejectWithValue }) => {
-  try {
-    // 1. Fetch credentials from physical disk storage
-    const accessToken = await storage.getAccessToken();
-    const refreshToken = await storage.getRefreshToken();
-    const user = await storage.getUser();
+export const restoreAuth = createAsyncThunk(
+  'auth/restoreAuth',
+  async (_, { rejectWithValue }) => {
+    try {
+      // 1. Fetch credentials from physical disk storage
+      const accessToken = await storage.getAccessToken();
+      const refreshToken = await storage.getRefreshToken();
+      const user = await storage.getUser();
 
-    // 2. If credentials exist, return them to be saved in Redux state (in extraReducers below)
-    if (accessToken && refreshToken && user) {
-      return { token: accessToken, refreshToken, user };
+      // 2. If credentials exist, return them to be saved in Redux state (in extraReducers below)
+      if (accessToken && refreshToken && user) {
+        return { token: accessToken, refreshToken, user };
+      }
+      return null;
+    } catch (e) {
+      return rejectWithValue('Failed to restore auth credentials');
     }
-    return null;
-  } catch (e) {
-    return rejectWithValue('Failed to restore auth credentials');
-  }
-});
+  },
+);
 
 const authSlice = createSlice({
   name: 'auth',
@@ -58,7 +62,11 @@ const authSlice = createSlice({
     // ========================================================================
     setCredentials: (
       state,
-      action: PayloadAction<{ user: UserState; token: string; refreshToken: string }>
+      action: PayloadAction<{
+        user: UserState;
+        token: string;
+        refreshToken: string;
+      }>,
     ) => {
       state.user = action.payload.user;
       state.token = action.payload.token;
@@ -69,12 +77,12 @@ const authSlice = createSlice({
     },
     // ========================================================================
     // [APP EXECUTION FLOW - NETWORK CYCLE: Token Rotation Success]
-    // Called automatically by Axios interceptor when our old Access Token 
+    // Called automatically by Axios interceptor when our old Access Token
     // expired, and we fetched a new Access/Refresh pair using our Refresh Token.
     // ========================================================================
     updateTokens: (
       state,
-      action: PayloadAction<{ token: string; refreshToken: string }>
+      action: PayloadAction<{ token: string; refreshToken: string }>,
     ) => {
       state.token = action.payload.token;
       state.refreshToken = action.payload.refreshToken;
@@ -84,7 +92,7 @@ const authSlice = createSlice({
     // Clears all login states. Triggered when the user taps Log Out,
     // or when the refresh token expires and verification fails on the backend.
     // ========================================================================
-    logoutState: (state) => {
+    logoutState: state => {
       state.user = null;
       state.token = null;
       state.refreshToken = null;
@@ -103,9 +111,9 @@ const authSlice = createSlice({
   // [APP EXECUTION FLOW - STEP 4A: AsyncStorage Results Handler]
   // Handles the result of restoreAuth() AsyncThunk.
   // ==========================================================================
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
-      .addCase(restoreAuth.pending, (state) => {
+      .addCase(restoreAuth.pending, state => {
         state.isLoading = true;
       })
       .addCase(restoreAuth.fulfilled, (state, action) => {
@@ -119,13 +127,18 @@ const authSlice = createSlice({
         // Finally set loading to false so RootNavigator can render the app stacks
         state.isLoading = false;
       })
-      .addCase(restoreAuth.rejected, (state) => {
+      .addCase(restoreAuth.rejected, state => {
         state.isLoading = false;
       });
   },
 });
 
-export const { setCredentials, updateTokens, logoutState, setAuthLoading, setAuthError } =
-  authSlice.actions;
+export const {
+  setCredentials,
+  updateTokens,
+  logoutState,
+  setAuthLoading,
+  setAuthError,
+} = authSlice.actions;
 
 export default authSlice.reducer;
