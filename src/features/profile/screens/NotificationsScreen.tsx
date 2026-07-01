@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
+  FlatList,
   SafeAreaView,
   StatusBar,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import COLORS from '../../../shared/constants/colors';
@@ -15,14 +14,16 @@ import SPACING from '../../../shared/constants/spacing';
 import ROUTES from '../../../shared/constants/routes';
 import { useNotifications, useMarkNotificationRead } from '../hooks/profileHooks';
 import { formatDate } from '../../../shared/utils/date';
+import EmptyState from '../../../shared/components/empty/EmptyState';
+import { NotificationSkeleton } from '../../../shared/components/skeleton';
 
 export const NotificationsScreen = ({ navigation }: any) => {
-  const { data: notifData, isLoading, refetch } = useNotifications();
+  const { data: notifData, isLoading, refetch, isRefetching } = useNotifications();
   const markReadMutation = useMarkNotificationRead();
 
   const notifications = notifData?.notifications || [];
 
-  const handleNotificationPress = (notif: any) => {
+  const handleNotificationPress = useCallback((notif: any) => {
     // 1. Mark notification as read
     markReadMutation.mutate(Number(notif.id), {
       onSuccess: () => {
@@ -37,7 +38,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
         console.error('Failed to mark notification as read:', err);
       },
     });
-  };
+  }, [navigation, refetch]);
 
   const handleMarkAllRead = () => {
     if (notifications.length === 0) return;
@@ -62,6 +63,31 @@ export const NotificationsScreen = ({ navigation }: any) => {
     ]);
   };
 
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => {
+      // Strip HTML tags from database message to display clean text in React Native
+      const cleanMessage = item.message ? item.message.replace(/<[^>]*>?/gm, '') : '';
+      
+      return (
+        <TouchableOpacity
+          style={styles.notifCard}
+          activeOpacity={0.8}
+          onPress={() => handleNotificationPress(item)}
+        >
+          <View style={styles.notifHeader}>
+            <Text style={styles.notifEmoji}>📢</Text>
+            <Text style={styles.notifDate}>{formatDate(item.createdAt)}</Text>
+          </View>
+          <Text style={styles.notifMessage}>{cleanMessage}</Text>
+          {item.postId && (
+            <Text style={styles.viewPostLink}>Tap to view post →</Text>
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [handleNotificationPress]
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
@@ -85,43 +111,34 @@ export const NotificationsScreen = ({ navigation }: any) => {
 
       <View style={styles.content}>
         {isLoading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Loading notifications...</Text>
-          </View>
-        ) : notifications.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>🔔</Text>
-            <Text style={styles.emptyStateText}>All caught up!</Text>
-            <Text style={styles.emptyStateSub}>
-              You have no unread notifications. New notifications about followed creators will appear here.
-            </Text>
-          </View>
+          <FlatList
+            data={Array(5).fill(0)}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+            renderItem={() => <NotificationSkeleton />}
+            showsVerticalScrollIndicator={false}
+          />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {notifications.map((item: any) => {
-              // Strip HTML tags from database message to display clean text in React Native
-              const cleanMessage = item.message ? item.message.replace(/<[^>]*>?/gm, '') : '';
-              
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.notifCard}
-                  activeOpacity={0.8}
-                  onPress={() => handleNotificationPress(item)}
-                >
-                  <View style={styles.notifHeader}>
-                    <Text style={styles.notifEmoji}>📢</Text>
-                    <Text style={styles.notifDate}>{formatDate(item.createdAt)}</Text>
-                  </View>
-                  <Text style={styles.notifMessage}>{cleanMessage}</Text>
-                  {item.postId && (
-                    <Text style={styles.viewPostLink}>Tap to view post →</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <FlatList
+            data={notifications}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            onRefresh={refetch}
+            refreshing={isRefetching}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <EmptyState
+                title="All caught up!"
+                subtitle="You have no unread notifications. New notifications about followed creators will appear here."
+                icon="🔔"
+              />
+            }
+            // Optimizations
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            updateCellsBatchingPeriod={50}
+          />
         )}
       </View>
     </SafeAreaView>

@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
-  ActivityIndicator,
   Image,
 } from 'react-native';
 import COLORS from '../../../shared/constants/colors';
@@ -15,10 +14,12 @@ import SPACING from '../../../shared/constants/spacing';
 import { useRankings } from '../hooks/profileHooks';
 import { useAppSelector } from '../../../store/hooks';
 import { getAvatarUri } from '../../../shared/utils/avatar';
+import EmptyState from '../../../shared/components/empty/EmptyState';
+import { UserCardSkeleton } from '../../../shared/components/skeleton';
 
 export const RankingsScreen = ({ navigation }: any) => {
   const currentUser = useAppSelector((state) => state.auth.user);
-  const { data: rankings = [], isLoading } = useRankings();
+  const { data: rankings = [], isLoading, refetch, isRefetching } = useRankings();
 
   // Helper to generate initials & select color based on name
   const getAvatarStyle = (name: string) => {
@@ -41,6 +42,66 @@ export const RankingsScreen = ({ navigation }: any) => {
     );
   };
 
+  const renderHeader = () => (
+    <View style={{ marginBottom: SPACING.md }}>
+      <Text style={styles.leaderboardTitle}>🏆 Top Creators Leaderboard</Text>
+      <Text style={styles.leaderboardSub}>
+        Rankings are calculated dynamically based on total accumulated post earnings.
+      </Text>
+    </View>
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => {
+      const { initial, color } = getAvatarStyle(item.username);
+      const isMe = item.userId === currentUser?.id;
+
+      return (
+        <View 
+          style={[
+            styles.rankRow,
+            isMe && styles.myRankRow,
+            { marginBottom: SPACING.sm }
+          ]}
+        >
+          {/* Rank Number / Medal */}
+          <View style={styles.rankBadgeContainer}>
+            {renderRankBadge(item.rank)}
+          </View>
+
+          {/* User Avatar */}
+          <View style={styles.avatarContainer}>
+            {getAvatarUri(item.profilePicture) ? (
+              <Image source={{ uri: getAvatarUri(item.profilePicture)! }} style={styles.avatarImg} />
+            ) : (
+              <View style={[styles.avatarCircle, { backgroundColor: color }]}>
+                <Text style={styles.avatarLetter}>{initial}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* User Meta */}
+          <View style={styles.userMeta}>
+            <Text style={[styles.userName, isMe && styles.myText]}>
+              {item.username} {isMe && '(You)'}
+            </Text>
+            <Text style={[styles.postsCount, isMe && styles.mySubText]}>
+              {item.totalPosts || 0} stories published
+            </Text>
+          </View>
+
+          {/* Earnings */}
+          <View style={styles.earningsContainer}>
+            <Text style={[styles.earningsValue, isMe && styles.myEarningsText]}>
+              ${(item.totalEarnings || 0).toFixed(2)}
+            </Text>
+          </View>
+        </View>
+      );
+    },
+    [currentUser?.id]
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
@@ -56,75 +117,37 @@ export const RankingsScreen = ({ navigation }: any) => {
 
       <View style={styles.content}>
         {isLoading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Loading leaderboard...</Text>
-          </View>
-        ) : rankings.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>🏆</Text>
-            <Text style={styles.emptyStateText}>No rankings calculated yet</Text>
-            <Text style={styles.emptyStateSub}>
-              Earn revenue through views to scale the rankings leaderboard!
-            </Text>
-          </View>
+          <FlatList
+            data={Array(5).fill(0)}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+            renderItem={() => <UserCardSkeleton />}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={renderHeader}
+          />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            <Text style={styles.leaderboardTitle}>🏆 Top Creators Leaderboard</Text>
-            <Text style={styles.leaderboardSub}>
-              Rankings are calculated dynamically based on total accumulated post earnings.
-            </Text>
-
-            <View style={styles.rankingsList}>
-              {rankings.map((item: any) => {
-                const { initial, color } = getAvatarStyle(item.username);
-                const isMe = item.userId === currentUser?.id;
-
-                return (
-                  <View 
-                    key={item.userId} 
-                    style={[
-                      styles.rankRow,
-                      isMe && styles.myRankRow,
-                    ]}
-                  >
-                    {/* Rank Number / Medal */}
-                    <View style={styles.rankBadgeContainer}>
-                      {renderRankBadge(item.rank)}
-                    </View>
-
-                    {/* User Avatar */}
-                    <View style={styles.avatarContainer}>
-                      {getAvatarUri(item.profilePicture) ? (
-                        <Image source={{ uri: getAvatarUri(item.profilePicture)! }} style={styles.avatarImg} />
-                      ) : (
-                        <View style={[styles.avatarCircle, { backgroundColor: color }]}>
-                          <Text style={styles.avatarLetter}>{initial}</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    {/* User Meta */}
-                    <View style={styles.userMeta}>
-                      <Text style={[styles.userName, isMe && styles.myText]}>
-                        {item.username} {isMe && '(You)'}
-                      </Text>
-                      <Text style={[styles.postsCount, isMe && styles.mySubText]}>
-                        {item.totalPosts || 0} stories published
-                      </Text>
-                    </View>
-
-                    {/* Earnings */}
-                    <View style={styles.earningsContainer}>
-                      <Text style={[styles.earningsValue, isMe && styles.myEarningsText]}>
-                        ${(item.totalEarnings || 0).toFixed(2)}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
+          <FlatList
+            data={rankings}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.userId.toString()}
+            onRefresh={refetch}
+            refreshing={isRefetching}
+            ListHeaderComponent={renderHeader}
+            contentContainerStyle={{ paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <EmptyState
+                title="No rankings calculated yet"
+                subtitle="Earn revenue through views to scale the rankings leaderboard!"
+                icon="🏆"
+              />
+            }
+            // Optimizations
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            updateCellsBatchingPeriod={50}
+          />
         )}
       </View>
     </SafeAreaView>

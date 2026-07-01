@@ -10,11 +10,16 @@ import {
   TextInput,
   Modal,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import { useEarnings, useMyPosts } from '../hooks/profileHooks';
+import {
+  SkeletonRow,
+  SkeletonCircle,
+  SkeletonBox,
+  GenericCardSkeleton,
+} from '../../../shared/components/skeleton';
 
 const INITIAL_TRANSACTIONS = [
   {
@@ -112,9 +117,48 @@ export const MyEarningsScreen = ({ navigation }: any) => {
       </View>
 
       {isPageLoading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Fetching earnings metrics...</Text>
+        <View style={styles.content}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            {/* Wallet Card Skeleton */}
+            <GenericCardSkeleton />
+            
+            {/* Cashout button skeleton */}
+            <SkeletonBox height={48} borderRadius={8} style={{ marginBottom: SPACING.md }} />
+            
+            {/* Breakdown title skeleton */}
+            <SkeletonBox width={150} height={20} style={{ marginBottom: SPACING.md }} />
+            
+            {/* Breakdown rows skeletons */}
+            <SkeletonRow style={{ justifyContent: 'space-between', paddingVertical: SPACING.sm, borderBottomWidth: 1, borderColor: COLORS.borderLight, marginBottom: SPACING.sm }}>
+              <View style={{ gap: 6 }}>
+                <SkeletonBox width={180} height={14} style={{ borderRadius: 4 }} />
+                <SkeletonBox width={80} height={10} style={{ borderRadius: 4 }} />
+              </View>
+              <SkeletonBox width={60} height={16} style={{ borderRadius: 4 }} />
+            </SkeletonRow>
+            <SkeletonRow style={{ justifyContent: 'space-between', paddingVertical: SPACING.sm, borderBottomWidth: 1, borderColor: COLORS.borderLight, marginBottom: SPACING.sm }}>
+              <View style={{ gap: 6 }}>
+                <SkeletonBox width={150} height={14} style={{ borderRadius: 4 }} />
+                <SkeletonBox width={80} height={10} style={{ borderRadius: 4 }} />
+              </View>
+              <SkeletonBox width={60} height={16} style={{ borderRadius: 4 }} />
+            </SkeletonRow>
+
+            {/* Transaction title skeleton */}
+            <SkeletonBox width={150} height={20} style={{ marginBottom: SPACING.md, marginTop: SPACING.md }} />
+
+            {/* Transaction row skeletons */}
+            <SkeletonRow style={{ justifyContent: 'space-between', paddingVertical: SPACING.sm, borderBottomWidth: 1, borderColor: COLORS.borderLight, marginBottom: SPACING.sm }}>
+              <SkeletonRow style={{ gap: SPACING.sm }}>
+                <SkeletonCircle size={40} />
+                <View style={{ gap: 6 }}>
+                  <SkeletonBox width={120} height={14} style={{ borderRadius: 4 }} />
+                  <SkeletonBox width={70} height={10} style={{ borderRadius: 4 }} />
+                </View>
+              </SkeletonRow>
+              <SkeletonBox width={50} height={16} style={{ borderRadius: 4 }} />
+            </SkeletonRow>
+          </ScrollView>
         </View>
       ) : (
         <View style={styles.content}>

@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   SafeAreaView,
   StatusBar,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
+import EmptyState from '../../../shared/components/empty/EmptyState';
+import { PostCardSkeleton } from '../../../shared/components/skeleton';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import ROUTES from '../../../shared/constants/routes';
@@ -23,7 +24,7 @@ export const MyPostsScreen = ({ navigation }: any) => {
   const [drafts, setDrafts] = useState<any[]>([]);
 
   // Queries & Mutations
-  const { data: userPosts = [], isLoading: isLoadingPosts, refetch } = useMyPosts();
+  const { data: userPosts = [], isLoading: isLoadingPosts, refetch, isRefetching } = useMyPosts();
   const deletePostMutation = useDeletePost();
 
   // Load offline drafts from AsyncStorage
@@ -72,6 +73,71 @@ export const MyPostsScreen = ({ navigation }: any) => {
       ]
     );
   };
+
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => {
+      const isDraft = activePostTab === 'draft';
+      const rawExcerpt = item.description ? item.description.replace(/<[^>]*>?/gm, '') : '';
+      const shortExcerpt = rawExcerpt.length > 120 ? rawExcerpt.slice(0, 120) + '...' : rawExcerpt;
+
+      if (isDraft) {
+        return (
+          <View style={styles.card}>
+            <View style={styles.postHeader}>
+              <Text style={styles.postDate}>Saved Draft</Text>
+              <TouchableOpacity onPress={() => handleDeletePost(item.id, true)}>
+                <Text style={styles.deleteText}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.postExcerpt} numberOfLines={3}>
+              {shortExcerpt}
+            </Text>
+            <TouchableOpacity
+              style={styles.loadDraftBtn}
+              onPress={() => navigation.navigate(ROUTES.WRITE, { loadDraftId: item.id })}
+            >
+              <Text style={styles.loadDraftBtnText}>✏️ Edit Draft</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+
+      return (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.card}
+          onPress={() => navigation.navigate(ROUTES.POST_DETAILS, { postId: item.id })}
+        >
+          <View style={styles.postHeader}>
+            <Text style={styles.postDate}>{formatDate(item.createdAt)}</Text>
+            <TouchableOpacity onPress={() => handleDeletePost(item.id, false)}>
+              <Text style={styles.deleteText}>🗑️</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.postExcerpt} numberOfLines={3}>
+            {shortExcerpt}
+          </Text>
+          <View style={styles.postStats}>
+            <Text style={styles.statText}>
+              {Array.isArray(item.postviewers) ? item.postviewers.length : (item.viewsCount || 0)} views  •  {item.likedislikes?.filter((l: any) => l.liked).length || 0} likes
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [activePostTab, navigation]
+  );
+
+  const renderFooter = () => (
+    <TouchableOpacity
+      style={[styles.actionButton, { marginTop: SPACING.md }]}
+      onPress={() => navigation.navigate(ROUTES.WRITE)}
+    >
+      <Text style={styles.actionButtonText}>+ Create New Post</Text>
+    </TouchableOpacity>
+  );
+
+  const listData = activePostTab === 'published' ? userPosts : drafts;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -124,95 +190,37 @@ export const MyPostsScreen = ({ navigation }: any) => {
         </View>
 
         {isLoadingPosts ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Fetching your posts...</Text>
-          </View>
-        ) : activePostTab === 'published' && userPosts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>📝</Text>
-            <Text style={styles.emptyStateText}>No published posts found</Text>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate(ROUTES.WRITE)}
-            >
-              <Text style={styles.actionButtonText}>Write a Post</Text>
-            </TouchableOpacity>
-          </View>
-        ) : activePostTab === 'draft' && drafts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>📂</Text>
-            <Text style={styles.emptyStateText}>No drafts found</Text>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => navigation.navigate(ROUTES.WRITE)}
-            >
-              <Text style={styles.actionButtonText}>Write a Post</Text>
-            </TouchableOpacity>
-          </View>
+          <FlatList
+            data={Array(3).fill(0)}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+            renderItem={() => <PostCardSkeleton />}
+            showsVerticalScrollIndicator={false}
+          />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {activePostTab === 'published'
-              ? userPosts.map((post: any) => {
-                  const rawExcerpt = post.description ? post.description.replace(/<[^>]*>?/gm, '') : '';
-                  const shortExcerpt = rawExcerpt.length > 120 ? rawExcerpt.slice(0, 120) + '...' : rawExcerpt;
-                  
-                  return (
-                    <TouchableOpacity
-                      key={post.id}
-                      activeOpacity={0.9}
-                      style={styles.card}
-                      onPress={() => navigation.navigate(ROUTES.POST_DETAILS, { postId: post.id })}
-                    >
-                      <View style={styles.postHeader}>
-                        <Text style={styles.postDate}>{formatDate(post.createdAt)}</Text>
-                        <TouchableOpacity onPress={() => handleDeletePost(post.id, false)}>
-                          <Text style={styles.deleteText}>🗑️</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <Text style={styles.postExcerpt} numberOfLines={3}>
-                        {shortExcerpt}
-                      </Text>
-                      <View style={styles.postStats}>
-                        <Text style={styles.statText}>
-                          {Array.isArray(post.postviewers) ? post.postviewers.length : (post.viewsCount || 0)} views  •  {post.likedislikes?.filter((l: any) => l.liked).length || 0} likes
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })
-              : drafts.map((draft: any) => {
-                  const rawExcerpt = draft.description ? draft.description.replace(/<[^>]*>?/gm, '') : '';
-                  const shortExcerpt = rawExcerpt.length > 120 ? rawExcerpt.slice(0, 120) + '...' : rawExcerpt;
-
-                  return (
-                    <View key={draft.id} style={styles.card}>
-                      <View style={styles.postHeader}>
-                        <Text style={styles.postDate}>Saved Draft</Text>
-                        <TouchableOpacity onPress={() => handleDeletePost(draft.id, true)}>
-                          <Text style={styles.deleteText}>🗑️</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <Text style={styles.postExcerpt} numberOfLines={3}>
-                        {shortExcerpt}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.loadDraftBtn}
-                        onPress={() => navigation.navigate(ROUTES.WRITE, { loadDraftId: draft.id })}
-                      >
-                        <Text style={styles.loadDraftBtnText}>✏️ Edit Draft</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-
-            <TouchableOpacity
-              style={[styles.actionButton, { marginTop: SPACING.md }]}
-              onPress={() => navigation.navigate(ROUTES.WRITE)}
-            >
-              <Text style={styles.actionButtonText}>+ Create New Post</Text>
-            </TouchableOpacity>
-          </ScrollView>
+          <FlatList
+            data={listData}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            onRefresh={refetch}
+            refreshing={isRefetching}
+            ListFooterComponent={renderFooter}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <EmptyState
+                title={activePostTab === 'published' ? 'No published posts found' : 'No drafts found'}
+                subtitle="Share your thoughts with the world by writing a new post!"
+                icon={activePostTab === 'published' ? '📝' : '📂'}
+                buttonText="Write a Post"
+                onPress={() => navigation.navigate(ROUTES.WRITE)}
+              />
+            }
+            // Optimizations
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            updateCellsBatchingPeriod={50}
+          />
         )}
       </View>
     </SafeAreaView>

@@ -1,22 +1,23 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   SafeAreaView,
   StatusBar,
-  ActivityIndicator,
   Image,
 } from 'react-native';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import { useFollowers } from '../hooks/profileHooks';
 import { getAvatarUri } from '../../../shared/utils/avatar';
+import EmptyState from '../../../shared/components/empty/EmptyState';
+import { UserCardSkeleton } from '../../../shared/components/skeleton';
 
 export const MyFollowersScreen = ({ navigation }: any) => {
-  const { data: followers = [], isLoading } = useFollowers();
+  const { data: followers = [], isLoading, refetch, isRefetching } = useFollowers();
 
   // Helper to generate initials & select a color based on initials
   const getAvatarStyle = (name: string) => {
@@ -26,6 +27,33 @@ export const MyFollowersScreen = ({ navigation }: any) => {
     const color = colors[charCode % colors.length];
     return { initial, color };
   };
+
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => {
+      const { initial, color } = getAvatarStyle(item.username);
+      const avatarUrl = getAvatarUri(item.profilePicture);
+
+      return (
+        <View style={styles.userListItem}>
+          <View style={styles.avatarWrapper}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <View style={[styles.avatarCircle, { backgroundColor: color }]}>
+                <Text style={styles.avatarLetter}>{initial}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{item.username}</Text>
+            <Text style={styles.userHandle}>@{item.username.toLowerCase()}</Text>
+            {item.email && <Text style={styles.userSubText}>{item.email}</Text>}
+          </View>
+        </View>
+      );
+    },
+    []
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -42,41 +70,34 @@ export const MyFollowersScreen = ({ navigation }: any) => {
 
       <View style={styles.content}>
         {isLoading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Fetching followers...</Text>
-          </View>
-        ) : followers.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>👥</Text>
-            <Text style={styles.emptyStateText}>No followers yet</Text>
-            <Text style={styles.emptyStateSub}>When other creators follow you, they will appear here.</Text>
-          </View>
+          <FlatList
+            data={Array(5).fill(0)}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+            renderItem={() => <UserCardSkeleton />}
+            showsVerticalScrollIndicator={false}
+          />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {followers.map((item: any) => {
-              const { initial, color } = getAvatarStyle(item.username);
-              const avatarUrl = getAvatarUri(item.profilePicture);
-              return (
-                <View key={item.id} style={styles.userListItem}>
-                  <View style={styles.avatarWrapper}>
-                    {avatarUrl ? (
-                      <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-                    ) : (
-                      <View style={[styles.avatarCircle, { backgroundColor: color }]}>
-                        <Text style={styles.avatarLetter}>{initial}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>{item.username}</Text>
-                    <Text style={styles.userHandle}>@{item.username.toLowerCase()}</Text>
-                    {item.email && <Text style={styles.userSubText}>{item.email}</Text>}
-                  </View>
-                </View>
-              );
-            })}
-          </ScrollView>
+          <FlatList
+            data={followers}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            onRefresh={refetch}
+            refreshing={isRefetching}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <EmptyState
+                title="No followers yet"
+                subtitle="When other creators follow you, they will appear here."
+                icon="👥"
+              />
+            }
+            // Optimizations
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            updateCellsBatchingPeriod={50}
+          />
         )}
       </View>
     </SafeAreaView>

@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
@@ -16,9 +16,11 @@ import SPACING from '../../../shared/constants/spacing';
 import { useFollowing } from '../hooks/profileHooks';
 import { useFollowUser, useUnfollowUser } from '../../posts/hooks/postHooks';
 import { getAvatarUri } from '../../../shared/utils/avatar';
+import EmptyState from '../../../shared/components/empty/EmptyState';
+import { UserCardSkeleton } from '../../../shared/components/skeleton';
 
 export const MyFollowingScreen = ({ navigation }: any) => {
-  const { data: following = [], isLoading, refetch } = useFollowing();
+  const { data: following = [], isLoading, refetch, isRefetching } = useFollowing();
   
   const followMutation = useFollowUser();
   const unfollowMutation = useUnfollowUser();
@@ -52,6 +54,47 @@ export const MyFollowingScreen = ({ navigation }: any) => {
     return { initial, color };
   };
 
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => {
+      const { initial, color } = getAvatarStyle(item.username);
+      const isToggling = unfollowMutation.isPending && unfollowMutation.variables === item.id;
+      const avatarUrl = getAvatarUri(item.profilePicture);
+
+      return (
+        <View style={styles.userListItem}>
+          <View style={styles.avatarWrapper}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <View style={[styles.avatarCircle, { backgroundColor: color }]}>
+                <Text style={styles.avatarLetter}>{initial}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{item.username}</Text>
+            <Text style={styles.userHandle}>@{item.username.toLowerCase()}</Text>
+            {item.email && <Text style={styles.userSubText}>{item.email}</Text>}
+          </View>
+          <TouchableOpacity
+            style={[styles.followToggleBtn, styles.followingBtn]}
+            onPress={() => handleUnfollow(item.id, item.username)}
+            disabled={isToggling}
+          >
+            {isToggling ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Text style={[styles.followToggleBtnText, styles.followingBtnText]}>
+                Following
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    },
+    [unfollowMutation.isPending, unfollowMutation.variables]
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
@@ -67,56 +110,34 @@ export const MyFollowingScreen = ({ navigation }: any) => {
 
       <View style={styles.content}>
         {isLoading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Fetching creators you follow...</Text>
-          </View>
-        ) : following.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>👤</Text>
-            <Text style={styles.emptyStateText}>You aren't following anyone yet</Text>
-            <Text style={styles.emptyStateSub}>Follow other creators from the story feed to see them here.</Text>
-          </View>
+          <FlatList
+            data={Array(5).fill(0)}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+            renderItem={() => <UserCardSkeleton />}
+            showsVerticalScrollIndicator={false}
+          />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            {following.map((item: any) => {
-              const { initial, color } = getAvatarStyle(item.username);
-              const isToggling = unfollowMutation.isPending && unfollowMutation.variables === item.id;
-              const avatarUrl = getAvatarUri(item.profilePicture);
-              
-              return (
-                <View key={item.id} style={styles.userListItem}>
-                  <View style={styles.avatarWrapper}>
-                    {avatarUrl ? (
-                      <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-                    ) : (
-                      <View style={[styles.avatarCircle, { backgroundColor: color }]}>
-                        <Text style={styles.avatarLetter}>{initial}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>{item.username}</Text>
-                    <Text style={styles.userHandle}>@{item.username.toLowerCase()}</Text>
-                    {item.email && <Text style={styles.userSubText}>{item.email}</Text>}
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.followToggleBtn, styles.followingBtn]}
-                    onPress={() => handleUnfollow(item.id, item.username)}
-                    disabled={isToggling}
-                  >
-                    {isToggling ? (
-                      <ActivityIndicator size="small" color={COLORS.primary} />
-                    ) : (
-                      <Text style={[styles.followToggleBtnText, styles.followingBtnText]}>
-                        Following
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </ScrollView>
+          <FlatList
+            data={following}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            onRefresh={refetch}
+            refreshing={isRefetching}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <EmptyState
+                title="You aren't following anyone yet"
+                subtitle="Follow other creators from the story feed to see them here."
+                icon="👤"
+              />
+            }
+            // Optimizations
+            removeClippedSubviews={true}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            updateCellsBatchingPeriod={50}
+          />
         )}
       </View>
     </SafeAreaView>

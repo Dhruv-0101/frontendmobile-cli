@@ -16,10 +16,16 @@ import {
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import Button from '../../../shared/components/Button/Button';
-import Loader from '../../../shared/components/Loader/Loader';
 import { formatDate } from '../../../shared/utils/date';
 import { getAvatarUri } from '../../../shared/utils/avatar';
 import { useAppSelector } from '../../../store/hooks';
+import {
+  SkeletonRow,
+  SkeletonCircle,
+  SkeletonBox,
+  SkeletonText,
+  CommentSkeleton,
+} from '../../../shared/components/skeleton';
 import {
   useSinglePost,
   useLikePost,
@@ -225,7 +231,60 @@ export const PostDetailsScreen = ({ route, navigation }: any) => {
   };
 
   if (isLoading) {
-    return <Loader message="Opening story details..." />;
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
+        
+        {/* Header bar placeholder */}
+        <View style={styles.headerBar}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.backBtnText}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Story Details</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          {/* Creator card skeleton */}
+          <View style={styles.creatorCard}>
+            <SkeletonCircle size={44} style={{ marginRight: SPACING.md }} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <SkeletonBox width={120} height={14} style={{ borderRadius: 4 }} />
+              <SkeletonBox width={80} height={10} style={{ borderRadius: 4 }} />
+            </View>
+          </View>
+
+          {/* Category Tag skeleton */}
+          <SkeletonBox width={100} height={24} style={{ borderRadius: 8, marginBottom: SPACING.md }} />
+
+          {/* Cover image skeleton */}
+          <SkeletonBox height={220} style={{ borderRadius: 16, marginBottom: SPACING.md }} />
+
+          {/* Main content body skeleton */}
+          <View style={[styles.postContent, { gap: 10 }]}>
+            <SkeletonText lines={4} style={{ marginBottom: 10 }} />
+            <SkeletonText lines={3} style={{ marginBottom: 10 }} />
+            <SkeletonText lines={4} />
+          </View>
+
+          {/* Stats skeleton */}
+          <SkeletonRow style={{ justifyContent: 'space-between', marginBottom: SPACING.md }}>
+            <SkeletonBox width={100} height={14} style={{ borderRadius: 4 }} />
+            <SkeletonRow style={{ gap: 8 }}>
+              <SkeletonBox width={60} height={24} style={{ borderRadius: 8 }} />
+              <SkeletonBox width={40} height={24} style={{ borderRadius: 8 }} />
+            </SkeletonRow>
+          </SkeletonRow>
+
+          {/* Comments title skeleton */}
+          <SkeletonBox width={120} height={18} style={{ borderRadius: 4, marginBottom: SPACING.md, marginTop: SPACING.sm }} />
+
+          {/* Comments skeleton list */}
+          <CommentSkeleton />
+          <CommentSkeleton />
+        </ScrollView>
+      </View>
+    );
   }
 
   if (error || !post) {

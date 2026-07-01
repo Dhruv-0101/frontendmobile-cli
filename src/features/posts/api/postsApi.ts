@@ -12,11 +12,16 @@ export interface Post {
 }
 
 export const postsApi = {
-  getPosts: async (): Promise<Post[]> => {
-    // The backend endpoint is GET /post/get-posts
-    const response = await apiClient.get('/post/get-posts');
-    // Return the post data (depending on response structure, usually response.data or response.data.posts)
-    return response.data?.posts || response.data?.data || response.data || [];
+  getPosts: async (
+    page: number = 1,
+    limit: number = 10,
+    category?: number,
+    title?: string
+  ): Promise<{ posts: Post[]; currentPage: number; totalPages: number; perPage: number }> => {
+    const response = await apiClient.get('/post/get-posts', {
+      params: { page, limit, category, title },
+    });
+    return response.data;
   },
 
   createPost: async (formData: FormData) => {

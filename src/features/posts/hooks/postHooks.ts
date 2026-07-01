@@ -1,13 +1,29 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { postsApi } from '../api/postsApi';
 
 /**
- * Hook to retrieve all blog posts.
+ * Hook to retrieve blog posts with infinite scroll support.
+ */
+export const useInfinitePosts = (filters?: { category?: number; title?: string }) => {
+  return useInfiniteQuery({
+    queryKey: ['posts-infinite', filters],
+    queryFn: ({ pageParam = 1 }) =>
+      postsApi.getPosts(pageParam, 10, filters?.category, filters?.title),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const next = lastPage.currentPage + 1;
+      return next <= lastPage.totalPages ? next : undefined;
+    },
+  });
+};
+
+/**
+ * Hook to retrieve all blog posts (first page limit 10).
  */
 export const usePosts = () => {
   return useQuery({
     queryKey: ['posts'],
-    queryFn: postsApi.getPosts,
+    queryFn: () => postsApi.getPosts(1, 100), // Get first 100 posts for legacy compatibility
   });
 };
 

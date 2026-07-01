@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   Image,
   TouchableOpacity,
   StatusBar,
@@ -11,19 +10,20 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {
-  usePosts,
+  useInfinitePosts,
   useCheckFollowing,
   useFollowUser,
   useUnfollowUser,
 } from '../hooks/postHooks';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
-import Loader from '../../../shared/components/Loader/Loader';
 import { formatDate } from '../../../shared/utils/date';
 import ROUTES from '../../../shared/constants/routes';
 import TopHeader from '../../../shared/components/TopHeader/TopHeader';
 import { getAvatarUri } from '../../../shared/utils/avatar';
 import { useAppSelector } from '../../../store/hooks';
+import InfiniteFlatList from '../../../shared/components/lists/InfiniteFlatList';
+import { PostCardSkeleton } from '../../../shared/components/skeleton';
 
 interface PostCardProps {
   item: any;
@@ -155,42 +155,31 @@ const PostCard = ({ item, navigation, currentUserId }: PostCardProps) => {
 };
 
 export const PostsScreen = ({ navigation }: any) => {
-  const { data: posts = [], isLoading, error, refetch, isRefetching } = usePosts();
+  const infiniteQueryResult = useInfinitePosts();
   const currentUser = useAppSelector((state) => state.auth.user);
 
-  if (isLoading) {
-    return <Loader message="Fetching the latest stories..." />;
-  }
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => (
+      <PostCard item={item} navigation={navigation} currentUserId={currentUser?.id} />
+    ),
+    [navigation, currentUser?.id]
+  );
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
       <TopHeader />
 
-      {error ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorEmoji}>📡</Text>
-          <Text style={styles.errorText}>Could not fetch posts</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-            <Text style={styles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={posts}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <PostCard item={item} navigation={navigation} currentUserId={currentUser?.id} />}
-          contentContainerStyle={styles.listContainer}
-          onRefresh={refetch}
-          refreshing={isRefetching}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>📭</Text>
-              <Text style={styles.emptyText}>No posts available. Write one!</Text>
-            </View>
-          }
-        />
-      )}
+      <InfiniteFlatList
+        infiniteQueryResult={infiniteQueryResult}
+        renderItem={renderItem}
+        keyExtractor={(item: any) => item.id.toString()}
+        SkeletonComponent={PostCardSkeleton}
+        skeletonCount={3}
+        emptyTitle="No posts available"
+        emptySubtitle="Be the first to write one!"
+        contentContainerStyle={styles.listContainer}
+      />
     </View>
   );
 };
