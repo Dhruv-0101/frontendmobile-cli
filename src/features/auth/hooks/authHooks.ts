@@ -53,6 +53,7 @@ export const useLogin = () => {
         isAdmin: !!data.isAdmin,
         hasSelectedPlan: !!data.hasSelectedPlan,
         planId: data.planId ? Number(data.planId) : null,
+        isTwoFactorEnabled: !!data.isTwoFactorEnabled,
       };
 
       // 2. Save rotated session keys permanently to device disk
@@ -116,6 +117,7 @@ export const useGoogleLogin = () => {
         isAdmin: !!data.isAdmin,
         hasSelectedPlan: !!data.hasSelectedPlan,
         planId: data.planId ? Number(data.planId) : null,
+        isTwoFactorEnabled: !!data.isTwoFactorEnabled,
       };
 
       // 2. Save tokens permanently to device memory (AsyncStorage)
@@ -158,6 +160,7 @@ export const useVerify2FA = () => {
         isAdmin: !!data.isAdmin,
         hasSelectedPlan: !!data.hasSelectedPlan,
         planId: data.planId ? Number(data.planId) : null,
+        isTwoFactorEnabled: true,
       };
 
       // Save rotated session keys permanently

@@ -7,8 +7,15 @@ import {
   Image,
   TouchableOpacity,
   StatusBar,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { usePosts } from '../hooks/postHooks';
+import {
+  usePosts,
+  useCheckFollowing,
+  useFollowUser,
+  useUnfollowUser,
+} from '../hooks/postHooks';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import Loader from '../../../shared/components/Loader/Loader';
@@ -16,74 +23,140 @@ import { formatDate } from '../../../shared/utils/date';
 import ROUTES from '../../../shared/constants/routes';
 import TopHeader from '../../../shared/components/TopHeader/TopHeader';
 import { getAvatarUri } from '../../../shared/utils/avatar';
+import { useAppSelector } from '../../../store/hooks';
+
+interface PostCardProps {
+  item: any;
+  navigation: any;
+  currentUserId: number | undefined;
+}
+
+const PostCard = ({ item, navigation, currentUserId }: PostCardProps) => {
+  const authorName = item.user?.username || 'Anonymous';
+  const authorInitial = authorName[0].toUpperCase();
+  const authorId = item.user?.id;
+
+  // Follow hooks
+  const { data: followStatus, isLoading: isLoadingFollow, refetch: refetchFollow } = useCheckFollowing(authorId);
+  const isFollowing = followStatus?.following || false;
+
+  console.log('Follow Card Debug:', { authorName, authorId, currentUserId, isOwnPost: currentUserId === authorId, isFollowing });
+
+  const followMutation = useFollowUser();
+  const unfollowMutation = useUnfollowUser();
+
+  const isOwnPost = currentUserId === authorId;
+
+  const handleFollowToggle = (e: any) => {
+    e.stopPropagation(); // Prevent opening post details when tapping follow
+    if (!authorId) return;
+
+    if (isFollowing) {
+      unfollowMutation.mutate(authorId, {
+        onSuccess: () => {
+          refetchFollow();
+        },
+        onError: (err: any) => {
+          Alert.alert('Error', err.response?.data?.message || 'Failed to unfollow.');
+        },
+      });
+    } else {
+      followMutation.mutate(authorId, {
+        onSuccess: () => {
+          refetchFollow();
+        },
+        onError: (err: any) => {
+          Alert.alert('Error', err.response?.data?.message || 'Failed to follow.');
+        },
+      });
+    }
+  };
+
+  // Stats calculation from fetched relations
+  const viewsCount = Array.isArray(item.postviewers)
+    ? item.postviewers.length
+    : item.viewsCount || 0;
+  const likesCount = item.likedislikes?.filter((l: any) => l.liked).length || 0;
+  const commentsCount = item.comments?.length || 0;
+
+  // Truncate description text cleanly
+  const rawDescription = item.description ? item.description.replace(/<[^>]*>?/gm, '') : '';
+  const isTruncated = rawDescription.length > 150;
+  const shortDescription = isTruncated ? rawDescription.slice(0, 150) + '...' : rawDescription;
+  
+  const avatarUrl = getAvatarUri(item.user?.profilePicture);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.95}
+      style={styles.postCard}
+      onPress={() => navigation.navigate(ROUTES.POST_DETAILS, { postId: item.id })}
+    >
+      {/* Author Header */}
+      <View style={styles.authorRow}>
+        <View style={styles.avatar}>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+          ) : (
+            <Text style={styles.avatarTxt}>{authorInitial}</Text>
+          )}
+        </View>
+        <View style={styles.authorMeta}>
+          <Text style={styles.authorName}>{authorName}</Text>
+          <Text style={styles.postDate}>{formatDate(item.createdAt)}</Text>
+        </View>
+
+        {/* Dynamic Follow Button */}
+        {!isOwnPost && authorId && (
+          <TouchableOpacity
+            style={[
+              styles.inlineFollowBtn,
+              isFollowing && styles.inlineFollowingBtn,
+            ]}
+            onPress={handleFollowToggle}
+            disabled={isLoadingFollow || followMutation.isPending || unfollowMutation.isPending}
+          >
+            {isLoadingFollow || followMutation.isPending || unfollowMutation.isPending ? (
+              <ActivityIndicator size="small" color={isFollowing ? COLORS.primary : COLORS.white} />
+            ) : (
+              <Text style={[styles.inlineFollowBtnText, isFollowing && styles.inlineFollowingBtnText]}>
+                {isFollowing ? 'Following' : 'Follow'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {item.category && (
+          <View style={styles.categoryBadge}>
+            <Text style={styles.categoryBadgeText}>{item.category.categoryName}</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Content Preview */}
+      <Text style={styles.description}>
+        {shortDescription}
+        {isTruncated && <Text style={styles.readMoreText}> Read More</Text>}
+      </Text>
+
+      {/* Post Image */}
+      {!!item.image && (
+        <Image source={{ uri: item.image }} style={styles.postImage} resizeMode="cover" />
+      )}
+
+      {/* Dynamic Stats Row */}
+      <View style={styles.statsRow}>
+        <Text style={styles.statsText}>
+          {viewsCount} views  •  {likesCount} likes  •  {commentsCount} comments
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 export const PostsScreen = ({ navigation }: any) => {
   const { data: posts = [], isLoading, error, refetch, isRefetching } = usePosts();
-
-  const renderPostItem = ({ item }: { item: any }) => {
-    const authorName = item.user?.username || 'Anonymous';
-    const authorInitial = authorName[0].toUpperCase();
-    
-    // Stats calculation from fetched relations
-    const viewsCount = Array.isArray(item.postviewers)
-      ? item.postviewers.length
-      : item.viewsCount || 0;
-    const likesCount = item.likedislikes?.filter((l: any) => l.liked).length || 0;
-    const commentsCount = item.comments?.length || 0;
-
-    // Truncate description text cleanly
-    const rawDescription = item.description ? item.description.replace(/<[^>]*>?/gm, '') : '';
-    const isTruncated = rawDescription.length > 150;
-    const shortDescription = isTruncated ? rawDescription.slice(0, 150) + '...' : rawDescription;
-    
-    const avatarUrl = getAvatarUri(item.user?.profilePicture);
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.95}
-        style={styles.postCard}
-        onPress={() => navigation.navigate(ROUTES.POST_DETAILS, { postId: item.id })}
-      >
-        {/* Author Header */}
-        <View style={styles.authorRow}>
-          <View style={styles.avatar}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-            ) : (
-              <Text style={styles.avatarTxt}>{authorInitial}</Text>
-            )}
-          </View>
-          <View style={styles.authorMeta}>
-            <Text style={styles.authorName}>{authorName}</Text>
-            <Text style={styles.postDate}>{formatDate(item.createdAt)}</Text>
-          </View>
-          {item.category && (
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{item.category.categoryName}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Content Preview */}
-        <Text style={styles.description}>
-          {shortDescription}
-          {isTruncated && <Text style={styles.readMoreText}> Read More</Text>}
-        </Text>
-
-        {/* Post Image */}
-        {!!item.image && (
-          <Image source={{ uri: item.image }} style={styles.postImage} resizeMode="cover" />
-        )}
-
-        {/* Dynamic Stats Row */}
-        <View style={styles.statsRow}>
-          <Text style={styles.statsText}>
-            {viewsCount} views  •  {likesCount} likes  •  {commentsCount} comments
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const currentUser = useAppSelector((state) => state.auth.user);
 
   if (isLoading) {
     return <Loader message="Fetching the latest stories..." />;
@@ -106,7 +179,7 @@ export const PostsScreen = ({ navigation }: any) => {
         <FlatList
           data={posts}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={renderPostItem}
+          renderItem={({ item }) => <PostCard item={item} navigation={navigation} currentUserId={currentUser?.id} />}
           contentContainerStyle={styles.listContainer}
           onRefresh={refetch}
           refreshing={isRefetching}
@@ -204,6 +277,28 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: 11,
     fontWeight: '700',
+    color: COLORS.primary,
+  },
+  inlineFollowBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 15,
+    marginRight: SPACING.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inlineFollowingBtn: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  inlineFollowBtnText: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  inlineFollowingBtnText: {
     color: COLORS.primary,
   },
   description: {

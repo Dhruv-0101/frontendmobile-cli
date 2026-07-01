@@ -11,7 +11,7 @@ import { getAvatarUri } from '../../utils/avatar';
 
 export const TopHeader = () => {
   const navigation = useNavigation<any>();
-  const user = useAppSelector((state) => state.auth.user);
+  const user = useAppSelector(state => state.auth.user);
 
   // Dynamic notifications count
   const { data: notifData } = useNotifications();
@@ -33,13 +33,13 @@ export const TopHeader = () => {
       {/* Right Controls */}
       <View style={styles.controlsRow}>
         {/* Rankings */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.iconBtn}
           onPress={() => navigation.navigate(ROUTES.RANKINGS)}
           activeOpacity={0.7}
         >
           <RankingsIcon color={COLORS.warning} size={18} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Notifications */}
         <TouchableOpacity
@@ -50,7 +50,9 @@ export const TopHeader = () => {
           <AlertsIcon color={COLORS.primary} size={18} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              <Text style={styles.badgeText}>
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Text>
             </View>
           )}
         </TouchableOpacity>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,31 +8,68 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import COLORS from '../../../shared/constants/colors';
 import SPACING from '../../../shared/constants/spacing';
 import { useAppSelector } from '../../../store/hooks';
 import TopHeader from '../../../shared/components/TopHeader/TopHeader';
 import ROUTES from '../../../shared/constants/routes';
-import { useMyPosts, useFollowers, useFollowing, useEarnings } from '../../profile/hooks/profileHooks';
+import {
+  useMyPosts,
+  useFollowers,
+  useFollowing,
+  useEarnings,
+} from '../../profile/hooks/profileHooks';
 import { getAvatarUri } from '../../../shared/utils/avatar';
 
 export const HomeScreen = ({ navigation }: any) => {
-  const user = useAppSelector((state) => state.auth.user);
+  const user = useAppSelector(state => state.auth.user);
+  const queryClient = useQueryClient();
 
   // Queries for dynamic dashboard analytics
   const { data: userPosts = [], isLoading: isLoadingPosts } = useMyPosts();
-  const { data: followers = [], isLoading: isLoadingFollowers } = useFollowers();
-  const { data: following = [], isLoading: isLoadingFollowing } = useFollowing();
+  const { data: followers = [], isLoading: isLoadingFollowers } =
+    useFollowers();
+  const { data: following = [], isLoading: isLoadingFollowing } =
+    useFollowing();
   const { data: earnings = 0, isLoading: isLoadingEarnings } = useEarnings();
+
+  const [refreshing, setRefreshing] = useState(false);
 
   const username = user?.username || 'Creator';
   const initial = username[0].toUpperCase();
   const avatarUrl = getAvatarUri(user?.profilePicture);
 
+  // Focus effect to refetch all home screen data and notifications when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['my-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['my-followers'] });
+      queryClient.invalidateQueries({ queryKey: ['my-following'] });
+      queryClient.invalidateQueries({ queryKey: ['my-earnings'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    }, [queryClient])
+  );
+
+  // Manual pull-to-refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['my-posts'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-followers'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-following'] }),
+      queryClient.invalidateQueries({ queryKey: ['my-earnings'] }),
+      queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    ]);
+    setRefreshing(false);
+  }, [queryClient]);
+
   // Performance calculations
   const totalPosts = Array.isArray(userPosts) ? userPosts.length : 0;
-  
+
   // Safe calculate views using postviewers array length or viewsCount property
   const totalViews = Array.isArray(userPosts)
     ? userPosts.reduce((sum: number, p: any) => {
@@ -43,36 +80,56 @@ export const HomeScreen = ({ navigation }: any) => {
     : 0;
 
   const totalLikes = userPosts.reduce(
-    (sum: number, p: any) => sum + (p.likedislikes?.filter((l: any) => l.liked).length || 0),
-    0
+    (sum: number, p: any) =>
+      sum + (p.likedislikes?.filter((l: any) => l.liked).length || 0),
+    0,
   );
 
   const totalDislikes = userPosts.reduce(
-    (sum: number, p: any) => sum + (p.likedislikes?.filter((l: any) => !l.liked).length || 0),
-    0
+    (sum: number, p: any) =>
+      sum + (p.likedislikes?.filter((l: any) => !l.liked).length || 0),
+    0,
   );
 
   const totalComments = userPosts.reduce(
     (sum: number, p: any) => sum + (p.comments?.length || 0),
-    0
+    0,
   );
 
-  const isPageLoading = isLoadingPosts || isLoadingFollowers || isLoadingFollowing || isLoadingEarnings;
+  const isPageLoading =
+    isLoadingPosts ||
+    isLoadingFollowers ||
+    isLoadingFollowing ||
+    isLoadingEarnings;
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.backgroundLight} />
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={COLORS.backgroundLight}
+      />
       <TopHeader />
-      
+
       {isPageLoading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Syncing creator workspace...</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
           {/* User Greeting Section */}
-          <View style={styles.welcomeRow}>
+          {/* <View style={styles.welcomeRow}>
             <View>
               <Text style={styles.greeting}>Good day,</Text>
               <Text style={styles.userName}>{username} 👋</Text>
@@ -90,7 +147,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 </View>
               )}
             </TouchableOpacity>
-          </View>
+          </View> */}
 
           {/* Dynamic Earnings Card */}
           <View style={styles.earningsCard}>
@@ -98,8 +155,8 @@ export const HomeScreen = ({ navigation }: any) => {
               <Text style={styles.earningsLabel}>ESTIMATED REVENUE</Text>
               <Text style={styles.earningsValue}>${earnings.toFixed(2)}</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.payoutBtn} 
+            <TouchableOpacity
+              style={styles.payoutBtn}
               activeOpacity={0.8}
               onPress={() => navigation.navigate(ROUTES.MY_EARNINGS)}
             >
@@ -109,7 +166,7 @@ export const HomeScreen = ({ navigation }: any) => {
 
           {/* Performance Dashboard Title */}
           <Text style={styles.sectionTitle}>Dashboard Performance</Text>
-          
+
           {/* Performance Grid */}
           <View style={styles.gridRow}>
             <TouchableOpacity
@@ -172,7 +229,9 @@ export const HomeScreen = ({ navigation }: any) => {
             >
               <View style={styles.commentsRow}>
                 <View>
-                  <Text style={styles.statLabelSingle}>Total Comments Received</Text>
+                  <Text style={styles.statLabelSingle}>
+                    Total Comments Received
+                  </Text>
                 </View>
                 <Text style={styles.statValueSingle}>{totalComments}</Text>
               </View>
@@ -184,13 +243,15 @@ export const HomeScreen = ({ navigation }: any) => {
           <View style={styles.tipCard}>
             <Text style={styles.tipTitle}>High engagement formatting</Text>
             <Text style={styles.tipDesc}>
-              Use headers (H1/H2/H3) and lists when formatting with the rich editor to improve readability.
+              Use headers (H1/H2/H3) and lists when formatting with the rich
+              editor to improve readability.
             </Text>
           </View>
           <View style={styles.tipCard}>
             <Text style={styles.tipTitle}>Active Audience</Text>
             <Text style={styles.tipDesc}>
-              Reply to comments on your post details screen to build community relationships and increase views.
+              Reply to comments on your post details screen to build community
+              relationships and increase views.
             </Text>
           </View>
         </ScrollView>

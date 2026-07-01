@@ -89,18 +89,12 @@ export const PostDetailsScreen = ({ route, navigation }: any) => {
     if (!creatorId) return;
     if (isFollowingCreator) {
       unfollowMutation.mutate(creatorId, {
-        onSuccess: () => {
-          Alert.alert('Unfollowed', `You unfollowed ${post.user?.username}.`);
-        },
         onError: (err: any) => {
           Alert.alert('Error', err.response?.data?.message || 'Failed to unfollow.');
         },
       });
     } else {
       followMutation.mutate(creatorId, {
-        onSuccess: () => {
-          Alert.alert('Followed', `You are now following ${post.user?.username}.`);
-        },
         onError: (err: any) => {
           Alert.alert('Error', err.response?.data?.message || 'Failed to follow.');
         },
@@ -248,6 +242,8 @@ export const PostDetailsScreen = ({ route, navigation }: any) => {
 
   const authorName = post.user?.username || 'Creator';
   const authorInitial = authorName[0].toUpperCase();
+
+  console.log('Follow Details Debug:', { authorName, creatorId, currentUserId: currentUser?.id, isOwnPost, isFollowingCreator });
 
   return (
     <KeyboardAvoidingView

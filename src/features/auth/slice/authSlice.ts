@@ -9,6 +9,7 @@ export interface UserState {
   isAdmin?: boolean;
   hasSelectedPlan?: boolean;
   planId?: number | null;
+  isTwoFactorEnabled?: boolean;
 }
 
 export interface AuthState {
@@ -118,6 +119,15 @@ const authSlice = createSlice({
         storage.setUser(state.user);
       }
     },
+    updateTwoFactorStatus: (
+      state,
+      action: PayloadAction<boolean>
+    ) => {
+      if (state.user) {
+        state.user.isTwoFactorEnabled = action.payload;
+        storage.setUser(state.user);
+      }
+    },
   },
   // ==========================================================================
   // [APP EXECUTION FLOW - STEP 4A: AsyncStorage Results Handler]
@@ -152,6 +162,7 @@ export const {
   setAuthLoading,
   setAuthError,
   updateUserPlan,
+  updateTwoFactorStatus,
 } = authSlice.actions;
 
 export default authSlice.reducer;

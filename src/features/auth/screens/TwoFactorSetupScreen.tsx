@@ -18,8 +18,13 @@ import Input from '../../../shared/components/Input/Input';
 import Button from '../../../shared/components/Button/Button';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { authApi } from '../api/authApi';
+import { useAppSelector, useAppDispatch } from '../../../store/hooks';
+import { updateTwoFactorStatus } from '../slice/authSlice';
 
 export const TwoFactorSetupScreen = ({ navigation }: any) => {
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
+
   const [setupData, setSetupData] = useState<{ secret: string; qrCodeDataUrl: string } | null>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -50,13 +55,18 @@ export const TwoFactorSetupScreen = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-    fetchSetupDetails();
-  }, []);
+    if (!user?.isTwoFactorEnabled) {
+      fetchSetupDetails();
+    } else {
+      setIsLoadingSetup(false);
+    }
+  }, [user?.isTwoFactorEnabled]);
 
   // Enable 2FA mutation
   const enableMutation = useMutation({
     mutationFn: authApi.enable2FA,
     onSuccess: (data) => {
+      dispatch(updateTwoFactorStatus(true));
       Alert.alert(
         'Success', 
         'Two-Factor Authentication is now active on your account!', 
@@ -78,6 +88,31 @@ export const TwoFactorSetupScreen = ({ navigation }: any) => {
     enableMutation.mutate({ secret: setupData.secret, code: code.trim() });
   };
 
+  // Disable 2FA mutation
+  const disableMutation = useMutation({
+    mutationFn: authApi.disable2FA,
+    onSuccess: () => {
+      dispatch(updateTwoFactorStatus(false));
+      Alert.alert(
+        'Success',
+        'Two-Factor Authentication has been successfully disabled.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    },
+    onError: (err: any) => {
+      setError(err.response?.data?.message || 'Failed to disable 2FA. Please verify the code.');
+    },
+  });
+
+  const handleDisable = () => {
+    setError(null);
+    if (code.trim().length !== 6) {
+      setError('Please enter a 6-digit verification code.');
+      return;
+    }
+    disableMutation.mutate(code.trim());
+  };
+
   const copyToClipboard = () => {
     if (setupData?.secret) {
       Clipboard.setString(setupData.secret);
@@ -91,6 +126,75 @@ export const TwoFactorSetupScreen = ({ navigation }: any) => {
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Generating secure setup...</Text>
       </View>
+    );
+  }
+
+  if (user?.isTwoFactorEnabled) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+        <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+          
+          <View style={styles.header}>
+            <Text style={styles.title}>Two-Factor Authentication</Text>
+            <Text style={styles.subtitle}>
+              Manage the extra security layer for your account.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.statusBox}>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>ACTIVE</Text>
+              </View>
+              <Text style={styles.statusTitle}>Two-Factor Auth is Enabled</Text>
+              <Text style={styles.statusDesc}>
+                Currently enabled for one device. To secure your account, you will be prompted for a verification code when signing in.
+              </Text>
+            </View>
+
+            <View style={styles.divider} />
+
+            <Text style={styles.stepTitle}>Disable 2FA</Text>
+            <Text style={styles.stepDesc}>
+              To disable 2FA, enter the current 6-digit verification code from your authenticator app below.
+            </Text>
+
+            {!!error && (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>{error}</Text>
+              </View>
+            )}
+
+            <Input
+              label="Verification Code"
+              placeholder="e.g. 123456"
+              value={code}
+              onChangeText={(text) => {
+                setCode(text.replace(/[^0-9]/g, '').slice(0, 6));
+                if (error) setError(null);
+              }}
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+
+            <Button
+              title="Disable 2FA"
+              onPress={handleDisable}
+              isLoading={disableMutation.isPending}
+              style={[styles.activateBtn, { backgroundColor: COLORS.danger }]}
+            />
+
+            <Button
+              title="Go Back"
+              onPress={() => navigation.goBack()}
+              variant="outline"
+              disabled={disableMutation.isPending}
+              style={styles.cancelBtn}
+            />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -305,6 +409,36 @@ const styles = StyleSheet.create({
   cancelBtn: {
     borderColor: COLORS.borderLight,
     marginTop: SPACING.sm,
+  },
+  statusBox: {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+  },
+  statusBadge: {
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 20,
+    marginBottom: SPACING.sm,
+  },
+  statusBadgeText: {
+    color: '#065f46',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  statusTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginBottom: SPACING.xs,
+    textAlign: 'center',
+  },
+  statusDesc: {
+    fontSize: 13,
+    color: COLORS.textLightSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: SPACING.sm,
   },
 });
 
